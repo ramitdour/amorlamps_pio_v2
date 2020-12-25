@@ -1,0 +1,9 @@
+#include <littlefs.h>    // Altough littlefs is inported so FS is not required but , in my case I had to add FS
+#include <Ticker.h>      //for LED status if Wifi
+#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include <ESP8266WiFi.h> // For basic functionality of ESP8266
+// Fast led for RGB leds
+#include <FastLED.h>
+#include "amorlamps.h"
+
+Free Heap>43056
