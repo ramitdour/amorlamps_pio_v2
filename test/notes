@@ -7,3 +7,23 @@
 #include "amorlamps.h"
 
 Free Heap>43056
+
+
+using #include <WiFiManager.h> and  #include "ESPAsyncWebServer.h" was creating conflict in usage so  renamed 
+
+#ifndef WEBSERVER_H
+typedef enum {
+  HTTP_GET_ASYNC     = 0b00000001,
+  HTTP_POST_ASYNC    = 0b00000010,
+  HTTP_DELETE_ASYNC  = 0b00000100,
+  HTTP_PUT_ASYNC     = 0b00001000,
+  HTTP_PATCH_ASYNC   = 0b00010000,
+  HTTP_HEAD_ASYNC    = 0b00100000,
+  HTTP_OPTIONS_ASYNC = 0b01000000,
+  HTTP_ANY_ASYNC     = 0b01111111,
+} WebRequestMethod;
+#endif
+
+added <_ASYNC> in the end of all libs
+
+for uploding flies only .bin file

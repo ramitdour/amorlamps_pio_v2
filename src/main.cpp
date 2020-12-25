@@ -6,7 +6,13 @@
 #include <ESP8266WiFi.h> // For basic functionality of ESP8266
 // Fast led for RGB leds
 #include <FastLED.h>
+
+#include "ESPAsyncTCP.h"
+#include "ESPAsyncWebServer.h"
+
 #include "amorlamps.h"
+
+// HTTP_HEAD
 
 /* ================= Import libraries END ================= */
 
@@ -41,6 +47,159 @@ const uint8_t wifiManagerLED = 2; // TODO: Upadte as per the requirements
 
 // Ticker tickerWifiManagerLed(tickWifiManagerLed, 1000, 0, MILLIS);
 Ticker tickerWifiManagerLed;
+
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");           // access at ws://[esp ip]/ws
+AsyncEventSource events("/events"); // event source (Server-Sent events)
+
+const char *http_username = "admin";
+const char *http_password = "admin";
+
+//flag to use from web update to reboot the ESP
+bool shouldReboot = false;
+
+void onRequest(AsyncWebServerRequest *request)
+{
+  //Handle Unknown Request
+  request->send(404);
+}
+
+void onBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+{
+  //Handle body
+  #ifdef DEBUG_AMOR
+  Serial.println("Handle body...");
+  #endif
+}
+
+void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+  //Handle upload
+  #ifdef DEBUG_AMOR
+  Serial.println("onUpload...");
+  #endif
+}
+
+void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
+{
+  //Handle WebSocket event
+  #ifdef DEBUG_AMOR
+  Serial.println("WebSocket...");
+  #endif
+
+
+}
+
+void setup_async()
+{
+#ifdef DEBUG_AMOR
+  Serial.println("setup_async...");
+#endif
+  LittleFS.begin();
+  // attach AsyncWebSocket
+  ws.onEvent(onEvent);
+  server.addHandler(&ws);
+
+  // attach AsyncEventSource
+  server.addHandler(&events);
+
+  // respond to GET requests on URL /heap
+  server.on("/heap", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", String(ESP.getFreeHeap()));
+  });
+
+  // upload a file to /upload
+  server.on(
+      "/upload", HTTP_POST_ASYNC, [](AsyncWebServerRequest *request) {
+        request->send(200);
+      },
+      onUpload);
+
+  // send a file when /index is requested
+  server.on("/index", HTTP_ANY_ASYNC, [](AsyncWebServerRequest *request) {
+#ifdef DEBUG_AMOR
+    Serial.println("fetching index file");
+    Serial.println();
+#endif
+    request->send(LittleFS, "/index.html");
+  });
+
+  // HTTP basic authentication
+  server.on("/login", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(200, "text/plain", "Login Success!");
+  });
+
+  // Simple Firmware Update Form
+  server.on("/update", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+  });
+  server.on(
+      "/update", HTTP_POST_ASYNC, [](AsyncWebServerRequest *request) {
+    shouldReboot = !Update.hasError();
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
+    response->addHeader("Connection", "close");
+    request->send(response); }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+    if(!index){
+#ifdef DEBUG_AMOR
+      Serial.printf("Update Start: %s\n", filename.c_str());
+#endif
+      Update.runAsync(true);
+      if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)){
+#ifdef DEBUG_AMOR
+        Update.printError(Serial);
+#endif
+      }
+    }
+    if(!Update.hasError()){
+      if(Update.write(data, len) != len){
+#ifdef DEBUG_AMOR
+        Update.printError(Serial);
+#endif
+      }
+    }
+    if(final){
+      if(Update.end(true)){
+#ifdef DEBUG_AMOR
+        Serial.printf("Update Success: %uB\n", index+len);
+#endif
+      } else {
+        Update.printError(Serial);
+      }
+    } });
+
+  // attach filesystem root at URL /fs
+  // server.serveStatic("/fs", LittleFS, "/");
+
+  // server.serveStatic("/index", LittleFS, "/index.html");
+  server.serveStatic("/style.css", LittleFS, "/style.css");
+  server.serveStatic("/script.js", LittleFS, "/script.js");
+
+  // Catch-All Handlers
+  // Any request that can not find a Handler that canHandle it
+  // ends in the callbacks below.
+  server.onNotFound(onRequest);
+  server.onFileUpload(onUpload);
+  server.onRequestBody(onBody);
+
+  server.begin();
+}
+
+void loop_async()
+{
+  if (shouldReboot)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Rebooting...");
+#endif
+    delay(100);
+    ESP.restart();
+  }
+  static char temp[128];
+  sprintf(temp, "Seconds since boot: %u", millis() / 1000);
+  events.send(temp, "time"); //send event "time"
+}
 
 String gethotspotname()
 {
@@ -184,12 +343,10 @@ void wifiManagerSetup()
 
   //Stopping WifiConfiguration LED
   // tickerWifiManagerLed.stop();
-    tickerWifiManagerLed.detach();
+  tickerWifiManagerLed.detach();
 
   // to destory tickerWifiManagerLed object
   // tickerWifiManagerLed.~Ticker();  // TODO: test is it required
-
-
 
   //keep LED on
   // digitalWrite(wifiManagerLED, LOW); //Inverted logic of onload leds
@@ -234,7 +391,7 @@ ICACHE_RAM_ATTR void myIRS1()
 void disable_touch_for_x_ms(uint x)
 {
   lastValidInterruptTime_2 = millis() + (unsigned long)x;
-#ifdef DEBUG_AMOR
+#ifdef DEBUG_AMOR // #endif
   Serial.print("disable_touch_for_x_ms > ");
   Serial.println(x);
 #endif
@@ -300,9 +457,15 @@ void setup()
   wifiManagerSetup();
   digitalWrite(wifiManagerLED, HIGH);
 
-  #ifdef DEBUG_AMOR
+#ifdef DEBUG_AMOR
   printHeap();
-  #endif
+#endif
+
+  setup_async();
+
+#ifdef DEBUG_AMOR
+  printHeap();
+#endif
 }
 
 // functions/steps to execute on interrupt 1
@@ -428,4 +591,6 @@ void loop()
 {
   // check flags is there any interrupt calls made
   myIRS_check();
+
+  loop_async();
 }
