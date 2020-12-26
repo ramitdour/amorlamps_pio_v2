@@ -1,6 +1,6 @@
 /* ================= Import libraries START ================= */
 
-#include <littlefs.h>    // Altough littlefs is inported so FS is not required but , in my case I had to add FS
+#include <littlefs.h>    // Although littlefs is inported so FS is not required but , in my case I had to add FS
 #include <Ticker.h>      //for LED status if Wifi
 #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266WiFi.h> // For basic functionality of ESP8266
@@ -58,6 +58,8 @@ const char *http_password = "admin";
 //flag to use from web update to reboot the ESP
 bool shouldReboot = false;
 
+
+
 void handleFileUpload()
 { // upload a new file to the SPIFFS
 }
@@ -76,14 +78,11 @@ void onBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t in
 #endif
 }
 
-
-
 // #include <SPIFFSEditor.h>
 // SPIFFSEditor editor("","",LittleFS);
 
-
 void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
-{ 
+{
   //Handle upload
 #ifdef DEBUG_AMOR
   Serial.println("onUpload...");
@@ -100,30 +99,13 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
   // response->addHeader("Server", "ESP Async Web Server");
   // request->send(response);
 
-  // if(!index){
-  //     Serial.printf("Update Start: %s\n", filename.c_str());
-  //     Update.runAsync(true);
-  //     if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)){
-  //       Update.printError(Serial);
-  //     }
-  //   }
-  //   if(!Update.hasError()){
-  //     if(Update.write(data, len) != len){
-  //       Update.printError(Serial);
-  //     }
-  //   }
-  //   if(final){
-  //     if(Update.end(true)){
-  //       Serial.printf("Update Success: %uB\n", index+len);
-  //     } else {
-  //       Update.printError(Serial);
-  //     }
-  //   }
-
   if (!index)
   {
-      request->_tempFile = LittleFS.open(filename, "w");
-
+#ifdef DEBUG_AMOR
+    Serial.print("Free Flash>");
+    Serial.println(ESP.getFreeSketchSpace());
+#endif
+    request->_tempFile = LittleFS.open(filename, "w");
   }
   if (request->_tempFile)
   {
@@ -134,9 +116,12 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
     if (final)
     {
       request->_tempFile.close();
+#ifdef DEBUG_AMOR
+      Serial.print("Free Flash>");
+      Serial.println(ESP.getFreeSketchSpace());
+#endif
     }
   }
-
   if (final)
   {
 #ifdef DEBUG_AMOR
@@ -152,90 +137,12 @@ void onUpload2(AsyncWebServerRequest *request, String filename, size_t index, ui
   Serial.println("onUpload...");
 #endif
 
-  // File fsUploadFile;
-  // HTTPUpload &upload = server.upload();
-  // if (upload.status == UPLOAD_FILE_START)
-  // {
-  //   String filename = upload.filename;
-  //   if (!filename.startsWith("/"))
-  //     filename = "/" + filename;
-  //   Serial.print("handleFileUpload Name: ");
-  //   Serial.println(filename);
-  //   fsUploadFile = SPIFFS.open(filename, "w"); // Open the file for writing in SPIFFS (create if it doesn't exist)
-  //   filename = String();
-  // }
-  // else if (upload.status == UPLOAD_FILE_WRITE)
-  // {
-  //   if (fsUploadFile)
-  //     fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
-  // }
-  // else if (upload.status == UPLOAD_FILE_END)
-  // {
-  //   if (fsUploadFile)
-  //   {                       // If the file was successfully created
-  //     fsUploadFile.close(); // Close the file again
-  //     Serial.print("handleFileUpload Size: ");
-  //     Serial.println(upload.totalSize);
-  //     server.sendHeader("Location", "/success.html"); // Redirect the client to the success page
-  //     server.send(303);
-  //   }
-  //   else
-  //   {
-  //     server.send(500, "text/plain", "500: couldn't create file");
-  //   }
-  // }
-
   if (!index)
   {
 #ifdef DEBUG_AMOR
     Serial.printf("Got file: %s\n", filename.c_str());
 #endif
-
-    // Update.runAsync(true);
-    //     if (!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000))
-    //     {
-    // #ifdef DEBUG_AMOR
-    //       Update.printError(Serial);
-    // #endif
-    //     }
-    const uint8_t *p;
-    p = data;
-    while (*p)
-    {
-      Serial.print(*p);
-      p++;
-    }
   }
-
-  // File fsUploadFile;
-  // if (HIGH)
-  // {
-  //   // String filename = filename;
-  //   if (!filename.startsWith("/"))
-  //     filename = "/" + filename;
-  //   Serial.print("handleFileUpload Name: ");
-  //   Serial.println(filename);
-  //   fsUploadFile = LittleFS.open(filename, "w"); // Open the file for writing in SPIFFS (create if it doesn't exist)
-  //   // filename = String();
-
-  //   if (fsUploadFile)
-  //   {
-  //     fsUploadFile.write(data, len); // Write the received bytes to the file
-  //   }
-
-  //   if (fsUploadFile)
-  //   {                       // If the file was successfully created
-  //     fsUploadFile.close(); // Close the file again
-  //     Serial.print("handleFileUpload Size: ");
-  //     // Serial.println(upload.totalSize);
-  //     // server.sendHeader("Location", "/success.html"); // Redirect the client to the success page
-  //     // server.send(303);
-  //   }
-  //   else
-  //   {
-  //     // server.send(500, "text/plain", "500: couldn't create file");
-  //   }
-  // }
 
   // if (true)
   // {
@@ -268,9 +175,6 @@ void onUpload2(AsyncWebServerRequest *request, String filename, size_t index, ui
     // Serial.println(request->getParam(i)->value());
     Serial.println("---");
   }
-  Serial.println("---" + request->arg("filename"));
-  Serial.println("---" + request->arg("filename"));
-  Serial.println("---" + request->arg("filename"));
 
   if (request->hasParam("filename", true))
   { // Download file
@@ -298,41 +202,7 @@ void onUpload2(AsyncWebServerRequest *request, String filename, size_t index, ui
     request->redirect("register");
   }
 
-  //   File fsUploadFile;
-  //   HTTPUpload &upload = server.upload();
-
-  //   if (upload.status == UPLOAD_FILE_START)
-  //   {
-  //     if (!filename.startsWith("/"))
-  //       filename = "/" + filename;
-  // #ifdef DEBUG_AMOR
-  //     Serial.print("handleFileUpload Name: ");
-  //     Serial.println(filename);
-  // #endif
-  //     fsUploadFile = LittleFS.open(filename, "w"); // Open the file for writing in SPIFFS (create if it doesn't exist)
-  //     filename = String();
-  //   }
-  //   else if (upload.status == UPLOAD_FILE_WRITE)
-  //   {
-  //     if (fsUploadFile)
-  //       fsUploadFile.write(data, len); // Write the received bytes to the file
-  //   }
-  //   else if (upload.status == UPLOAD_FILE_END)
-  //   {
-  //     if (fsUploadFile)
-  //     {                       // If the file was successfully created
-  //       fsUploadFile.close(); // Close the file again
-  //       Serial.print("handleFileUpload Size: ");
-  //       Serial.println(upload.totalSize);
-  //       server.sendHeader("Location", "/success.html"); // Redirect the client to the success page
-  //       server.send(303);
-  //     }
-  //     else
-  //     {
-  //       server.send(500, "text/plain", "500: couldn't create file");
-  //     }
-  //   }
-
+  
   if (final)
   {
 #ifdef DEBUG_AMOR
@@ -438,7 +308,8 @@ void setup_async()
 
   // Simple File Update/Upload Form
   server.on("/fsupload", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/html", "<form name='myUploadForm' id='myUploadForm' method='POST' action='/ fsupload' enctype='multipart/form-data'><div><label for='say'>What greeting do you want to say?</label><input name='say' id='say' value='Hi'></div><div><label for='to'>Who do you want to say it to?</label><input name='to' id='to' value='Mom'></div><div><label for='filename'>Select file</label><input name='filename' id='filename' type='file'></div><div><label for='fsupload'>PerformUpload</label><input name='fsupload' id='fsupload' type='submit' value='Update'></div></form>");
+    request->send(200, "text/html", "<form name='myUploadForm' id='myUploadForm' method='POST' action='/ fsupload' enctype='multipart/form-data'><div><label for='filename'>Select file</label><input name='filename' id='filename' type='file'></div><div><label for='fsupload'>PerformUpload</label><input name='fsupload' id='fsupload' type='submit' value='Update'></div></form>");
+    //<div><label for='say'>What greeting do you want to say?</label><input name='say' id='say' value='Hi'></div><div><label for='to'>Who do you want to say it to?</label><input name='to' id='to' value='Mom'></div>
   });
 
   server.on(
@@ -713,6 +584,12 @@ void printHeap()
 
 void listAndReadFiles()
 {
+
+#ifdef DEBUG_AMOR
+  Serial.print("Free Flash>");
+  Serial.println(ESP.getFreeSketchSpace());
+#endif
+
   LittleFS.begin();
   String str = "";
   Dir dir = LittleFS.openDir("/");
@@ -727,6 +604,7 @@ void listAndReadFiles()
     {
       Serial.println("===got my file");
       File f = dir.openFile("r");
+      f.write(0xFF);
       // Serial.println(f.readString());
       while (f.available())
       {
@@ -736,7 +614,11 @@ void listAndReadFiles()
     }
   }
   Serial.print(str);
-  Serial.println("^^^^^ALL FILES^^^^^");
+  #ifdef DEBUG_AMOR
+  Serial.print("Free Flash>");
+  Serial.println(ESP.getFreeSketchSpace());
+  #endif
+ 
 }
 
 void setup()
