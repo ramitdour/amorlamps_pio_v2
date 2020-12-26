@@ -1,20 +1,35 @@
 /* ================= Import libraries START ================= */
 
-#include <littlefs.h>    // Although littlefs is inported so FS is not required but , in my case I had to add FS
-#include <Ticker.h>      //for LED status if Wifi
-#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
-#include <ESP8266WiFi.h> // For basic functionality of ESP8266
+#include <littlefs.h>          // Although littlefs is inported so FS is not required but , in my case I had to add FS
+#include <Ticker.h>            //for LED status if Wifi
+#include <WiFiManager.h>       //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include <ESP8266WiFi.h>       // For basic functionality of ESP8266
+#include <ESP8266HTTPClient.h> // For HTTP client functionality of ESP8266
 // Fast led for RGB leds
 #include <FastLED.h>
 
 #include "ESPAsyncTCP.h"
 #include "ESPAsyncWebServer.h"
 
+// <AWS IOT + MQTT - PUB/SUB>
+
+#include <PubSubClient.h> // For ESP8266 to publish/subscribe messaging with aws MQTT server
+#include <NTPClient.h>    // To connect Network Time Protocol (NTP) server for epoch time
+#include <WiFiUdp.h>      // Implementations send and receive timestamps using the User Datagram Protocol (UDP)
+
+#include <ArduinoJson.h> // Serial data <-> JSON data , for conversions
+
+// <For PWM led task queue>
+#include <cppQueue.h> // For PWM led task queue
+
 #include "amorlamps.h"
 
 // HTTP_HEAD
 
 /* ================= Import libraries END ================= */
+
+// # define Serial.printf "Serial.println"
+const String FirmwareVer = {"1.0"};
 
 #define DEBUG_AMOR 1; // TODO:comment in production
 
@@ -51,6 +66,7 @@ Ticker tickerWifiManagerLed;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");           // access at ws://[esp ip]/ws
 AsyncEventSource events("/events"); // event source (Server-Sent events)
+unsigned long wsCleanupMillis = 0;
 
 const char *http_username = "admin";
 const char *http_password = "admin";
@@ -58,7 +74,44 @@ const char *http_password = "admin";
 //flag to use from web update to reboot the ESP
 bool shouldReboot = false;
 
+String deviceId = "amorAAA_C7ED21";
+String groupId = "123456";
 
+// AWS , MQTT , PUB/SUB + internet Time
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org");
+bool setX509TimeFlag = false;
+
+unsigned long timeClient_counter_lastvalid_millis = 0;
+// uint8_t timeClient_counter = 0;
+
+// const char *AWS_endpoint = "a2q0zes51fm6yg-ats.iot.us-west-2.amazonaws.com"; //MQTT broker ip
+const char *AWS_endpoint = "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com"; //MQTT broker ip
+uint8_t failed_aws_trials_counter = 0;
+// const char *aws_topic = "$aws/things/esp8266_C7ED21/";
+
+// aws_topic;
+
+String aws_topic_str = "$aws/things/" + deviceId + "/";
+// char *aws_topic = "$aws/things/esp8266_C7ED21/";
+String aws_group_topic_str = "amorgroup/" + groupId + "/";
+
+void aws_callback(char *topic, byte *payload, unsigned int length);
+
+WiFiClientSecure espClient;
+PubSubClient clientPubSub(AWS_endpoint, 8883, aws_callback, espClient); //set MQTT port number to 8883 as per //standard
+
+long lastMsg = 0;
+char msg[50];
+int value = 0;
+
+void aws_callback(char *topic, byte *payload, unsigned int length)
+{
+#ifdef DEBUG_AMOR
+  Serial.println("aws_callback");
+  printHeap();
+#endif
+}
 
 void handleFileUpload()
 { // upload a new file to the SPIFFS
@@ -202,7 +255,6 @@ void onUpload2(AsyncWebServerRequest *request, String filename, size_t index, ui
     request->redirect("register");
   }
 
-  
   if (final)
   {
 #ifdef DEBUG_AMOR
@@ -215,8 +267,101 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
 {
 //Handle WebSocket event
 #ifdef DEBUG_AMOR
+  printHeap();
   Serial.println("WebSocket...");
+  Serial.println(type);
+  // Serial.print(*data);
+  Serial.println(len);
 #endif
+
+  if (type == WS_EVT_CONNECT)
+  {
+    //client connected
+    Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
+    client->printf("Hello Client %u :)", client->id());
+    client->ping();
+  }
+  else if (type == WS_EVT_DISCONNECT)
+  {
+    //client disconnected
+    Serial.printf("ws[%s][%u] disconnect: %u\n", server->url(), client->id());
+  }
+  else if (type == WS_EVT_ERROR)
+  {
+    //error was received from the other end
+    Serial.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t *)arg), (char *)data);
+  }
+  else if (type == WS_EVT_PONG)
+  {
+    //pong message was received (in response to a ping request maybe)
+    Serial.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len) ? (char *)data : "");
+  }
+  else if (type == WS_EVT_DATA)
+  {
+    //data packet
+    AwsFrameInfo *info = (AwsFrameInfo *)arg;
+    if (info->final && info->index == 0 && info->len == len)
+    {
+      //the whole message is in a single frame and we got all of it's data
+      Serial.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
+      if (info->opcode == WS_TEXT)
+      {
+        data[len] = 0;
+        Serial.printf("%s\n", (char *)data);
+      }
+      else
+      {
+        for (size_t i = 0; i < info->len; i++)
+        {
+          Serial.printf("%02x ", data[i]);
+        }
+        Serial.printf("\n");
+      }
+
+      if (info->opcode == WS_TEXT)
+        client->text("I got your text message");
+      else
+        client->binary("I got your binary message");
+    }
+    else
+    {
+      //message is comprised of multiple frames or the frame is split into multiple packets
+      if (info->index == 0)
+      {
+        if (info->num == 0)
+          Serial.printf("ws[%s][%u] %s-message start\n", server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+        Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server->url(), client->id(), info->num, info->len);
+      }
+
+      Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server->url(), client->id(), info->num, (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
+      if (info->message_opcode == WS_TEXT)
+      {
+        data[len] = 0;
+        Serial.printf("%s\n", (char *)data);
+      }
+      else
+      {
+        for (size_t i = 0; i < len; i++)
+        {
+          Serial.printf("%02x ", data[i]);
+        }
+        Serial.printf("\n");
+      }
+
+      if ((info->index + len) == info->len)
+      {
+        Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server->url(), client->id(), info->num, info->len);
+        if (info->final)
+        {
+          Serial.printf("ws[%s][%u] %s-message end\n", server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+          if (info->message_opcode == WS_TEXT)
+            client->text("I got your text message");
+          else
+            client->binary("I got your binary message");
+        }
+      }
+    }
+  }
 }
 
 void setup_async()
@@ -342,6 +487,47 @@ void loop_async()
   sprintf(temp, "Seconds since boot: %u", millis() / 1000);
   events.send(temp, "time"); //send event "time"
 }
+
+// ---- UNIX TIME SETUP END ----
+void setupUNIXTime()
+{
+  timeClient.begin();
+
+#ifdef DEBUG_AMOR
+  Serial.println("setupUNIXTime");
+#endif
+}
+
+void setupUNIXTimeLoop()
+{
+
+  bool okTC = timeClient.update();
+
+  if ((millis() - timeClient_counter_lastvalid_millis > 6000) && okTC)
+  {
+    timeClient_counter_lastvalid_millis = millis();
+
+#ifdef DEBUG_AMOR
+    Serial.println("----5 sec time update ----");
+    Serial.println(timeClient.getEpochTime());
+    Serial.println(timeClient.getFormattedTime());
+#endif
+
+    if (!setX509TimeFlag)
+    {
+      setX509TimeFlag = true;
+      espClient.setX509Time(timeClient.getEpochTime());
+
+#ifdef DEBUG_AMOR
+      Serial.println("espClient.setX509Time(timeClient.getEpochTime());");
+      Serial.println(timeClient.getEpochTime());
+      Serial.println(timeClient.getFormattedTime());
+#endif
+    }
+  }
+}
+
+// ---- UNIX TIME SETUP END ----
 
 String gethotspotname()
 {
@@ -502,7 +688,7 @@ void wifiManagerSetup()
 
   // setup internet time to device
   // TODO: if possible put it in setup() directly
-  // setupUNIXTime();
+  setupUNIXTime();
 
   // amorWebsocket_setup();
 
@@ -604,7 +790,6 @@ void listAndReadFiles()
     {
       Serial.println("===got my file");
       File f = dir.openFile("r");
-      f.write(0xFF);
       // Serial.println(f.readString());
       while (f.available())
       {
@@ -614,11 +799,10 @@ void listAndReadFiles()
     }
   }
   Serial.print(str);
-  #ifdef DEBUG_AMOR
+#ifdef DEBUG_AMOR
   Serial.print("Free Flash>");
   Serial.println(ESP.getFreeSketchSpace());
-  #endif
- 
+#endif
 }
 
 void setup()
@@ -649,6 +833,17 @@ void setup()
 #ifdef DEBUG_AMOR
   printHeap();
 #endif
+}
+
+// this will close connectin with unused/old websockets clients
+void wsCleanup()
+{
+  if (millis() - wsCleanupMillis > 15000)
+  {
+    wsCleanupMillis = millis();
+    ws.cleanupClients();
+    printHeap();
+  }
 }
 
 // functions/steps to execute on interrupt 1
@@ -697,6 +892,7 @@ void myIRS1_method()
   // printHeap();
   // FirmwareUpdateChaccha();
   // readAndSendFile("config.json");
+  forget_saved_wifi_creds();
 }
 
 // functions/steps to execute on interrupt 1
@@ -746,6 +942,36 @@ void myIRS2_method()
   // send_touch_toGroup();
 }
 
+// Restart device after 1s delay
+void restart_device()
+{
+#ifdef DEBUG_AMOR
+  Serial.println(" !!! RESTARTING ESP !!!");
+#endif
+  leds[NUM_LEDS - 1] = CRGB::Red;
+  FastLED.show();
+  delay(1000);
+  ESP.restart();
+}
+
+void forget_saved_wifi_creds()
+{
+
+#ifdef DEBUG_AMOR
+  Serial.println(ESP.getFreeHeap());
+#endif
+
+  WiFiManager wifiManager;
+  wifiManager.resetSettings();
+
+#ifdef DEBUG_AMOR
+  Serial.println(ESP.getFreeHeap());
+#endif
+
+  delay(500);
+  ESP.restart();
+}
+
 // Iterrupt 1 method call check
 void myIRS_check()
 {
@@ -776,4 +1002,8 @@ void loop()
   myIRS_check();
 
   loop_async();
+
+  wsCleanup();
+
+  setupUNIXTimeLoop();
 }

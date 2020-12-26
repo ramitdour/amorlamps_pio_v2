@@ -62,6 +62,9 @@ void listAndReadFiles();
 
 
 // Other methods
+void restart_device();
+void forget_saved_wifi_creds();
+
 void myIRS1_method();
 void myIRS2_method();
 
@@ -75,5 +78,7 @@ void handleFileUpload();
 // In void loop
 void myIRS_check();
 void loop_async();
+void wsCleanup();
+void setupUNIXTimeLoop();
 
 #endif
