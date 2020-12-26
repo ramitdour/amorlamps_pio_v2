@@ -27,3 +27,5 @@ typedef enum {
 added <_ASYNC> in the end of all libs
 
 for uploding flies only .bin file
+
+solved the issue for async file write to flash
