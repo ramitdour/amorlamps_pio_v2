@@ -317,7 +317,7 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
   if (!index)
   {
 #ifdef DEBUG_AMOR
-    Serial.print("Free Flash>");
+    Serial.print("Before Free Flash>");
     Serial.println(ESP.getFreeSketchSpace());
 #endif
     request->_tempFile = LittleFS.open(filename, "w");
@@ -327,12 +327,15 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
     if (len)
     {
       request->_tempFile.write(data, len);
+#ifdef DEBUG_AMOR
+      printHeap();
+#endif
     }
     if (final)
     {
       request->_tempFile.close();
 #ifdef DEBUG_AMOR
-      Serial.print("Free Flash>");
+      Serial.print("After Free Flash>");
       Serial.println(ESP.getFreeSketchSpace());
 #endif
     }
@@ -552,13 +555,13 @@ void setup_async()
       onUpload);
 
   // send a file when /index is requested
-  server.on("/index", HTTP_ANY_ASYNC, [](AsyncWebServerRequest *request) {
-#ifdef DEBUG_AMOR
-    Serial.println("fetching index file");
-    Serial.println();
-#endif
-    request->send(LittleFS, "/index.html");
-  });
+  //   server.on("/index", HTTP_ANY_ASYNC, [](AsyncWebServerRequest *request) {
+  // #ifdef DEBUG_AMOR
+  //     Serial.println("fetching index file");
+  //     Serial.println();
+  // #endif
+  //     request->send(LittleFS, "/index.html");
+  //   });
 
   // HTTP basic authentication
   server.on("/login", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
@@ -609,7 +612,7 @@ void setup_async()
   // attach filesystem root at URL /fs
   // server.serveStatic("/fs", LittleFS, "/");
 
-  // server.serveStatic("/index", LittleFS, "/index.html");
+  server.serveStatic("/index", LittleFS, "/index.html");
   server.serveStatic("/style.css", LittleFS, "/style.css");
   server.serveStatic("/script.js", LittleFS, "/script.js");
 
@@ -645,9 +648,11 @@ void loop_async()
     delay(100);
     ESP.restart();
   }
-  static char temp[128];
-  sprintf(temp, "Seconds since boot: %u", millis() / 1000);
-  events.send(temp, "time"); //send event "time"
+  
+  // static char temp[128];
+  // sprintf(temp, "Seconds since boot: %u", millis() / 1000);
+  // events.send(temp, "time"); //send event "time"
+
 }
 
 // ---- UNIX TIME SETUP END ----
@@ -1166,6 +1171,8 @@ void reconnect_aws()
 #ifdef DEBUG_AMOR
         Serial.println("connected");
         printHeap();
+        espClient.flush();
+        printHeap();
 #endif
         // Once connected, publish an announcement...
         clientPubSub.publish("outTopic", "hello world");
@@ -1230,7 +1237,7 @@ void check_AWS_mqtt()
 {
 
   if (!clientPubSub.connected())
-  {
+  { clientPubSub.disconnect();
     reconnect_aws();
   }
   clientPubSub.loop();
