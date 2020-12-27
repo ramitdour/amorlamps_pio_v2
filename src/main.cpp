@@ -88,6 +88,7 @@ unsigned long timeClient_counter_lastvalid_millis = 0;
 // const char *AWS_endpoint = "a2q0zes51fm6yg-ats.iot.us-west-2.amazonaws.com"; //MQTT broker ip
 const char *AWS_endpoint = "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com"; //MQTT broker ip
 uint8_t failed_aws_trials_counter = 0;
+unsigned long reconnect_aws_millis = 0;
 // const char *aws_topic = "$aws/things/esp8266_C7ED21/";
 
 // aws_topic;
@@ -99,6 +100,7 @@ String aws_group_topic_str = "amorgroup/" + groupId + "/";
 void aws_callback(char *topic, byte *payload, unsigned int length);
 
 WiFiClientSecure espClient;
+
 PubSubClient clientPubSub(AWS_endpoint, 8883, aws_callback, espClient); //set MQTT port number to 8883 as per //standard
 
 long lastMsg = 0;
@@ -110,6 +112,166 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
 #ifdef DEBUG_AMOR
   Serial.println("aws_callback");
   printHeap();
+#endif
+}
+
+// void subscribeDeviceTopics()
+// {
+
+// #ifdef DEBUG_AMOR
+//   Serial.println("subscribeDeviceTopics before");
+//   Serial.println(aws_topic_str);
+//   Serial.println(aws_group_topic_str);
+// #endif
+
+//   clientPubSub.subscribe((aws_topic_str + "+").c_str());
+//   clientPubSub.subscribe((aws_group_topic_str + "+").c_str());
+
+//   //Sending ip wo aws servers for debugging
+
+//   send_responseToAWS(deviceId + " = " + readFromConfigJSON("localIP"));
+
+// #ifdef DEBUG_AMOR
+//   Serial.println("subscribeDeviceTopics DONEE ...");
+//   Serial.println(ESP.getFreeHeap());
+// #endif
+// }
+
+// ---- CERTIFICATES READ for  AWS IOT SETUP START ----
+
+void readAwsCerts()
+{
+#ifdef DEBUG_AMOR
+  Serial.print("Heap: ");
+  Serial.println(ESP.getFreeHeap());
+  printHeap();
+#endif
+
+  leds[NUM_LEDS - 1] = CRGB::Violet;
+  FastLED.show();
+  // TODO:verify that weather closing the opened file later on makes any difference
+  if (!LittleFS.begin())
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("Failed to mount file system");
+#endif
+    return;
+  }
+
+  // Load certificate file
+  File cert = LittleFS.open("/cert.der", "r"); //replace cert.crt with your uploaded file name
+  if (!cert)
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("Failed to open cert file");
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("Success to open cert file");
+#endif
+  }
+
+  delay(1000);
+
+  if (espClient.loadCertificate(cert))
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("cert loaded");
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("cert not loaded");
+#endif
+  }
+
+  cert.close();
+
+  // Load private key file
+  File private_key = LittleFS.open("/private.der", "r"); //replace private with your uploaded file name
+  if (!private_key)
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("Failed to open private cert file");
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("Success to open private cert file");
+#endif
+  }
+
+  delay(1000);
+
+  if (espClient.loadPrivateKey(private_key))
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("private key loaded");
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("private key not loaded");
+#endif
+  }
+
+  private_key.close();
+
+  // Load CA file
+  File ca = LittleFS.open("/ca.der", "r"); //replace ca with your uploaded file name
+  if (!ca)
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("Failed to open ca ");
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("Success to open ca");
+#endif
+  }
+
+  delay(1000);
+
+  if (espClient.loadCACert(ca))
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("ca loaded");
+#endif
+  }
+
+  else
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println("ca failed");
+#endif
+  }
+
+  ca.close();
+
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.print("Heap: ");
+  Serial.println(ESP.getFreeHeap());
 #endif
 }
 
@@ -507,11 +669,11 @@ void setupUNIXTimeLoop()
   {
     timeClient_counter_lastvalid_millis = millis();
 
-#ifdef DEBUG_AMOR
-    Serial.println("----5 sec time update ----");
-    Serial.println(timeClient.getEpochTime());
-    Serial.println(timeClient.getFormattedTime());
-#endif
+    // #ifdef DEBUG_AMOR
+    //     Serial.println("---- 5 sec time update ----");
+    //     Serial.println(timeClient.getEpochTime());
+    //     Serial.println(timeClient.getFormattedTime());
+    // #endif
 
     if (!setX509TimeFlag)
     {
@@ -716,15 +878,6 @@ ICACHE_RAM_ATTR void myIRS1()
   }
 }
 
-void disable_touch_for_x_ms(uint x)
-{
-  lastValidInterruptTime_2 = millis() + (unsigned long)x;
-#ifdef DEBUG_AMOR // #endif
-  Serial.print("disable_touch_for_x_ms > ");
-  Serial.println(x);
-#endif
-}
-
 ICACHE_RAM_ATTR void myIRS2()
 {
 
@@ -833,6 +986,12 @@ void setup()
 #ifdef DEBUG_AMOR
   printHeap();
 #endif
+
+  readAwsCerts();
+
+#ifdef DEBUG_AMOR
+  printHeap();
+#endif
 }
 
 // this will close connectin with unused/old websockets clients
@@ -893,6 +1052,15 @@ void myIRS1_method()
   // FirmwareUpdateChaccha();
   // readAndSendFile("config.json");
   forget_saved_wifi_creds();
+}
+
+void disable_touch_for_x_ms(uint16_t x)
+{
+  lastValidInterruptTime_2 = millis() + (unsigned long)x;
+#ifdef DEBUG_AMOR
+  Serial.print("disable_touch_for_x_ms > ");
+  Serial.println(x);
+#endif
 }
 
 // functions/steps to execute on interrupt 1
@@ -972,6 +1140,102 @@ void forget_saved_wifi_creds()
   ESP.restart();
 }
 
+// ---- AWS IOT RECONNECT SETUP START ----
+void reconnect_aws()
+{
+  // printHeap();
+  // Loop until we're reconnected
+
+  if (!clientPubSub.connected())
+  {
+    if (millis() - reconnect_aws_millis > 5000)
+    {
+      reconnect_aws_millis = millis();
+
+      leds[NUM_LEDS - 1] = CRGB::MediumVioletRed;
+      FastLED.show();
+
+#ifdef DEBUG_AMOR
+      printHeap();
+      Serial.print("Attempting MQTT connection...");
+      // Serial.print(MQTT_MAX_PACKET_SIZE);
+#endif
+      // Attempt to connect
+      if (clientPubSub.connect(deviceId.c_str()))
+      { // update with your own thingName $aws/things/myEspTestWork/shadow/update
+#ifdef DEBUG_AMOR
+        Serial.println("connected");
+        printHeap();
+#endif
+        // Once connected, publish an announcement...
+        clientPubSub.publish("outTopic", "hello world");
+        // ... and resubscribe
+        clientPubSub.subscribe("inTopic");
+
+        // subscribeDeviceShadow();
+        // printHeap();
+        // setup_config_vars();
+        // printHeap();
+        // publish_boot_data();
+        // printHeap();
+        // subscribeDeviceTopics();
+        // printHeap();
+
+#ifdef DEBUG_AMOR
+        printHeap();
+        Serial.println("client.subscribe  OK !!!");
+#endif
+
+        leds[NUM_LEDS - 1] = CRGB::Green;
+        FastLED.show();
+        delay(1000);
+
+        leds[NUM_LEDS - 1] = CRGB::Black;
+        FastLED.show();
+
+        disable_touch_for_x_ms(200);
+      }
+      else
+      {
+        failed_aws_trials_counter++;
+        if (failed_aws_trials_counter > 4)
+        {
+          restart_device();
+        }
+
+#ifdef DEBUG_AMOR
+        printHeap();
+        Serial.print("failed, rc=");
+        Serial.print(clientPubSub.state());
+        Serial.println(" try again in 5 seconds");
+#endif
+
+        char buf[256];
+        espClient.getLastSSLError(buf, 256);
+
+#ifdef DEBUG_AMOR
+        printHeap();
+        Serial.print("WiFiClientSecure SSL error: ");
+        Serial.println(buf);
+#endif
+      }
+    }
+  }
+}
+
+// ---- AWS IOT RECONNECT SETUP END ----
+
+// to Keep MQTT aws iot connection alive (i.e. keep PubSubClient alive)
+void check_AWS_mqtt()
+{
+
+  if (!clientPubSub.connected())
+  {
+    reconnect_aws();
+  }
+  clientPubSub.loop();
+}
+
 // Iterrupt 1 method call check
 void myIRS_check()
 {
@@ -1006,4 +1270,6 @@ void loop()
   wsCleanup();
 
   setupUNIXTimeLoop();
+
+  check_AWS_mqtt();
 }
