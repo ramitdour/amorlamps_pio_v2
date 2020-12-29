@@ -1,26 +1,15 @@
 /* ================= Import libraries START AVISH================= */
 
-#include <littlefs.h>         // Although littlefs is inported so FS is not required but , in my case I had to add FS
-#include <Ticker.h>           //for LED status if Wifi
-#include <WiFiManager.h>      //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
-#include <DNSServer.h>        //Local DNS Server used for redirecting all requests to the configuration portal
-#include <ESP8266WebServer.h> //Local WebServer used to serve the configuration portal
-
-// <ESP> + <OTA>
+#include <littlefs.h>          // Although littlefs is inported so FS is not required but , in my case I had to add FS
+#include <Ticker.h>            //for LED status if Wifi
+#include <WiFiManager.h>       //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266WiFi.h>       // For basic functionality of ESP8266
 #include <ESP8266HTTPClient.h> // For HTTP client functionality of ESP8266
-#include <ESP8266httpUpdate.h> // For OTA functionality of ESP8266
-
-#include <CertStoreBearSSL.h>
-BearSSL::CertStore certStore;
-
-#include <ESP8266HTTPUpdateServer.h>
-
 // Fast led for RGB leds
 #include <FastLED.h>
 
-//mDNS
-#include <ESP8266mDNS.h> // Include the mDNS library
+#include "ESPAsyncTCP.h"
+#include "ESPAsyncWebServer.h"
 
 // <AWS IOT + MQTT - PUB/SUB>
 
@@ -74,6 +63,12 @@ const uint8_t wifiManagerLED = 2; // TODO: Upadte as per the requirements
 // Ticker tickerWifiManagerLed(tickWifiManagerLed, 1000, 0, MILLIS);
 Ticker tickerWifiManagerLed;
 
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");           // access at ws://[esp ip]/ws
+AsyncEventSource events("/events"); // event source (Server-Sent events)
+
+unsigned long wsCleanupMillis = 0;
+
 const char *http_username = "admin";
 const char *http_password = "admin";
 
@@ -109,6 +104,10 @@ WiFiClientSecure espClient;
 
 PubSubClient clientPubSub(AWS_endpoint, 8883, aws_callback, espClient); //set MQTT port number to 8883 as per //standard
 
+long lastMsg = 0;
+char msg[50];
+int value = 0;
+
 void aws_callback(char *topic, byte *payload, unsigned int length)
 {
 #ifdef DEBUG_AMOR
@@ -141,10 +140,6 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
 
 // ---- CERTIFICATES READ for  AWS IOT SETUP START ----
 
-void subscribeDeviceTopics()
-{
-}
-
 void readAwsCerts()
 {
 #ifdef DEBUG_AMOR
@@ -155,7 +150,6 @@ void readAwsCerts()
 
   leds[NUM_LEDS - 1] = CRGB::Violet;
   FastLED.show();
-
   // TODO:verify that weather closing the opened file later on makes any difference
   if (!LittleFS.begin())
   {
@@ -286,6 +280,387 @@ void readAwsCerts()
 #endif
 }
 
+void handleFileUpload()
+{ // upload a new file to the SPIFFS
+}
+
+void onRequest(AsyncWebServerRequest *request)
+{
+  //Handle Unknown Request
+  request->send(404);
+}
+
+void onBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+{
+//Handle body
+#ifdef DEBUG_AMOR
+  Serial.println("Handle body...");
+#endif
+}
+
+// #include <SPIFFSEditor.h>
+// SPIFFSEditor editor("","",LittleFS);
+
+void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+  //Handle upload
+#ifdef DEBUG_AMOR
+  Serial.println("onUpload...");
+  Serial.print(index);
+  Serial.print(" ");
+  Serial.print(len);
+  Serial.print(" ");
+  Serial.print(final);
+  Serial.print(" ");
+#endif
+
+  // request->send(LittleFS, filename, String(), true);
+  // AsyncWebServerResponse *response = request->beginResponse(LittleFS, filename, String(), true);
+  // response->addHeader("Server", "ESP Async Web Server");
+  // request->send(response);
+
+  if (!index)
+  {
+#ifdef DEBUG_AMOR
+    Serial.print("Before Free Flash>");
+    Serial.println(ESP.getFreeSketchSpace());
+#endif
+    request->_tempFile = LittleFS.open(filename, "w");
+  }
+  if (request->_tempFile)
+  {
+    if (len)
+    {
+      request->_tempFile.write(data, len);
+#ifdef DEBUG_AMOR
+      printHeap();
+#endif
+    }
+    if (final)
+    {
+      request->_tempFile.close();
+#ifdef DEBUG_AMOR
+      Serial.print("After Free Flash>");
+      Serial.println(ESP.getFreeSketchSpace());
+#endif
+    }
+  }
+  if (final)
+  {
+#ifdef DEBUG_AMOR
+    Serial.printf("Update Success: %uB\n", index + len);
+#endif
+  }
+}
+
+void onUpload2(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+//Handle upload
+#ifdef DEBUG_AMOR
+  Serial.println("onUpload...");
+#endif
+
+  if (!index)
+  {
+#ifdef DEBUG_AMOR
+    Serial.printf("Got file: %s\n", filename.c_str());
+#endif
+  }
+
+  // if (true)
+  // {
+  //   AsyncWebServerResponse *response = request->beginResponse(LittleFS, filename, String(), true);
+  //   response->addHeader("Server", "ESP Async Web Server");
+  //   request->send(response);
+  //    }
+
+  Serial.println(" +++request->headers()");
+  for (size_t i = 0; i < request->headers(); i++)
+  {
+    Serial.println(request->getHeader(i)->name());
+    Serial.println(request->getHeader(i)->value());
+    Serial.println("---");
+  }
+  Serial.println(" ++++ request->params()");
+
+  for (size_t i = 0; i < request->params(); i++)
+  {
+    Serial.println(request->getParam(i)->name()); // listHeaders(request);
+    Serial.println(request->getParam(i)->value());
+    Serial.println("---");
+  }
+  Serial.println(" ++++ request->args()");
+  for (size_t i = 0; i < request->args(); i++)
+  {
+    Serial.println(request->arg(i)); // listHeaders(request);
+    Serial.println(request->argName(i));
+    Serial.println(request->pathArg(i));
+    // Serial.println(request->getParam(i)->value());
+    Serial.println("---");
+  }
+
+  if (request->hasParam("filename", true))
+  { // Download file
+    if (request->hasArg("fsupload"))
+    { // file download
+      Serial.println("Download Filename: " + request->arg("filename"));
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, request->arg("filename"), String(), true);
+      response->addHeader("Server", "ESP Async Web Server");
+      request->send(response);
+      return;
+    }
+    else if (request->hasArg("delete"))
+    { // Delete file
+      LittleFS.remove(request->getParam("filename", true)->value());
+      // request->send(200, "", "DELETE: "+request->getParam("path", true)->value());
+      request->redirect("/files");
+    }
+    else
+    {
+      Serial.println("SOMETHING IS WRING");
+    }
+  }
+  else if (request->hasArg("goBack"))
+  { // GO Back Button
+    request->redirect("register");
+  }
+
+  if (final)
+  {
+#ifdef DEBUG_AMOR
+    Serial.printf("Update Success: %uB\n", index + len);
+#endif
+  }
+}
+
+void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
+{
+//Handle WebSocket event
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println("WebSocket...");
+  Serial.println(type);
+  // Serial.print(*data);
+  Serial.println(len);
+#endif
+
+  if (type == WS_EVT_CONNECT)
+  {
+    ws.cleanupClients(); // got new WS client forget all old ones !
+    //client connected
+    Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
+    client->printf("Hello Client %u :)", client->id());
+    client->ping();
+  }
+  else if (type == WS_EVT_DISCONNECT)
+  {
+    //client disconnected
+    Serial.printf("ws[%s][%u] disconnect: %u\n", server->url(), client->id());
+    ws.cleanupClients();
+  }
+  else if (type == WS_EVT_ERROR)
+  {
+    //error was received from the other end
+    Serial.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t *)arg), (char *)data);
+  }
+  else if (type == WS_EVT_PONG)
+  {
+    //pong message was received (in response to a ping request maybe)
+    Serial.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len) ? (char *)data : "");
+  }
+  else if (type == WS_EVT_DATA)
+  {
+    //data packet
+    AwsFrameInfo *info = (AwsFrameInfo *)arg;
+    if (info->final && info->index == 0 && info->len == len)
+    {
+      //the whole message is in a single frame and we got all of it's data
+      Serial.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
+      if (info->opcode == WS_TEXT)
+      {
+        data[len] = 0;
+        Serial.printf("%s\n", (char *)data);
+      }
+      else
+      {
+        for (size_t i = 0; i < info->len; i++)
+        {
+          Serial.printf("%02x ", data[i]);
+        }
+        Serial.printf("\n");
+      }
+
+      if (info->opcode == WS_TEXT)
+        client->text("I got your text message");
+      else
+        client->binary("I got your binary message");
+    }
+    else
+    {
+      //message is comprised of multiple frames or the frame is split into multiple packets
+      if (info->index == 0)
+      {
+        if (info->num == 0)
+          Serial.printf("ws[%s][%u] %s-message start\n", server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+        Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server->url(), client->id(), info->num, info->len);
+      }
+
+      Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server->url(), client->id(), info->num, (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
+      if (info->message_opcode == WS_TEXT)
+      {
+        data[len] = 0;
+        Serial.printf("%s\n", (char *)data);
+      }
+      else
+      {
+        for (size_t i = 0; i < len; i++)
+        {
+          Serial.printf("%02x ", data[i]);
+        }
+        Serial.printf("\n");
+      }
+
+      if ((info->index + len) == info->len)
+      {
+        Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server->url(), client->id(), info->num, info->len);
+        if (info->final)
+        {
+          Serial.printf("ws[%s][%u] %s-message end\n", server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+          if (info->message_opcode == WS_TEXT)
+            client->text("I got your text message");
+          else
+            client->binary("I got your binary message");
+        }
+      }
+    }
+  }
+}
+
+void setup_async()
+{
+#ifdef DEBUG_AMOR
+  Serial.println("setup_async...");
+#endif
+  LittleFS.begin();
+  // attach AsyncWebSocket
+  ws.onEvent(onEvent);
+  server.addHandler(&ws);
+  // attach AsyncEventSource
+  server.addHandler(&events);
+
+  // respond to GET requests on URL /heap
+  server.on("/heap", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", String(ESP.getFreeHeap()));
+  });
+
+  // upload a file to /upload
+  server.on(
+      "/upload", HTTP_POST_ASYNC, [](AsyncWebServerRequest *request) {
+        request->send(200);
+      },
+      onUpload);
+
+  // send a file when /index is requested
+  //   server.on("/index", HTTP_ANY_ASYNC, [](AsyncWebServerRequest *request) {
+  // #ifdef DEBUG_AMOR
+  //     Serial.println("fetching index file");
+  //     Serial.println();
+  // #endif
+  //     request->send(LittleFS, "/index.html");
+  //   });
+
+  // HTTP basic authentication
+  server.on("/login", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(200, "text/plain", "Login Success!");
+  });
+
+  // Simple Firmware Update Form
+  server.on("/update", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+  });
+
+  server.on(
+      "/update", HTTP_POST_ASYNC, [](AsyncWebServerRequest *request) {
+    shouldReboot = !Update.hasError();
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
+    response->addHeader("Connection", "close");
+    request->send(response); }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+    if(!index){
+#ifdef DEBUG_AMOR
+      Serial.printf("Update Start: %s\n", filename.c_str());
+#endif
+      Update.runAsync(true);
+      if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)){
+#ifdef DEBUG_AMOR
+        Update.printError(Serial);
+#endif
+      }
+    }
+    if(!Update.hasError()){
+      if(Update.write(data, len) != len){
+#ifdef DEBUG_AMOR
+        Update.printError(Serial);
+#endif
+      }
+    }
+    if(final){
+      if(Update.end(true)){
+#ifdef DEBUG_AMOR
+        Serial.printf("Update Success: %uB\n", index+len);
+#endif
+      } else {
+        Update.printError(Serial);
+      }
+    } });
+
+  // attach filesystem root at URL /fs
+  // server.serveStatic("/fs", LittleFS, "/");
+
+  server.serveStatic("/index", LittleFS, "/index.html");
+  server.serveStatic("/style.css", LittleFS, "/style.css");
+  server.serveStatic("/script.js", LittleFS, "/script.js");
+  server.serveStatic("/mytxt", LittleFS, "/my.txt.txt");
+
+  // Simple File Update/Upload Form
+  server.on("/fsupload", HTTP_GET_ASYNC, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/html", "<form name='myUploadForm' id='myUploadForm' method='POST' action='/ fsupload' enctype='multipart/form-data'><div><label for='filename'>Select file</label><input name='filename' id='filename' type='file'></div><div><label for='fsupload'>PerformUpload</label><input name='fsupload' id='fsupload' type='submit' value='Update'></div></form>");
+    //<div><label for='say'>What greeting do you want to say?</label><input name='say' id='say' value='Hi'></div><div><label for='to'>Who do you want to say it to?</label><input name='to' id='to' value='Mom'></div>
+  });
+
+  server.on(
+      "/fsupload", HTTP_POST_ASYNC, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/html", "200 ok ");
+      },
+      onUpload);
+
+  // Catch-All Handlers
+  // Any request that can not find a Handler that canHandle it
+  // ends in the callbacks below.
+  server.onNotFound(onRequest);
+  server.onFileUpload(onUpload);
+  server.onRequestBody(onBody);
+
+  server.begin();
+}
+
+void loop_async()
+{
+  if (shouldReboot)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Rebooting...");
+#endif
+    delay(100);
+    ESP.restart();
+  }
+
+  // static char temp[128];
+  // sprintf(temp, "Seconds since boot: %u", millis() / 1000);
+  // events.send(temp, "time"); //send event "time"
+}
+
 String readFromConfigJSON(String key)
 {
   // TODO: check is little fs is begun before this call ?
@@ -367,7 +742,6 @@ String readFromConfigJSON(String key)
 }
 
 // ---- UNIX TIME SETUP END ----
-
 void setupUNIXTime()
 {
   timeClient.begin();
@@ -375,6 +749,35 @@ void setupUNIXTime()
 #ifdef DEBUG_AMOR
   Serial.println("setupUNIXTime");
 #endif
+}
+
+void setupUNIXTimeLoop()
+{
+
+  bool okTC = timeClient.update();
+
+  if ((millis() - timeClient_counter_lastvalid_millis > 6000) && okTC)
+  {
+    timeClient_counter_lastvalid_millis = millis();
+
+    // #ifdef DEBUG_AMOR
+    //     Serial.println("---- 5 sec time update ----");
+    //     Serial.println(timeClient.getEpochTime());
+    //     Serial.println(timeClient.getFormattedTime());
+    // #endif
+
+    if (!setX509TimeFlag)
+    {
+      setX509TimeFlag = true;
+      espClient.setX509Time(timeClient.getEpochTime());
+
+#ifdef DEBUG_AMOR
+      Serial.println("espClient.setX509Time(timeClient.getEpochTime());");
+      Serial.println(timeClient.getEpochTime());
+      Serial.println(timeClient.getFormattedTime());
+#endif
+    }
+  }
 }
 
 // ---- UNIX TIME SETUP END ----
@@ -510,7 +913,6 @@ void wifiManagerSetup()
     //reset and try again, or maybe put it to deep sleep
     delay(1000);
     ESP.reset();
-    // restart_device(); TODO:Why not this ?
   }
 
 //if you get here you have connected to the WiFi
@@ -539,6 +941,7 @@ void wifiManagerSetup()
 
   // setup internet time to device
   // TODO: if possible put it in setup() directly
+  setupUNIXTime();
 
   // amorWebsocket_setup();
 
@@ -559,16 +962,26 @@ void setup_RGB_leds()
 // Interrupt service routine , very light weight
 ICACHE_RAM_ATTR void myIRS1()
 {
-  myISR1_flag = 1;
+
+  if (currrentMillis_interrupt - lastValidInterruptTime_1 > debounceDuration)
+  {
+    myISR1_flag = 1;
+  }
 }
 
 ICACHE_RAM_ATTR void myIRS2()
 {
-  myISR2_flag = 1;
+
+  if (currrentMillis_interrupt - lastValidInterruptTime_2 > debounceDuration)
+  {
+    myISR2_flag = 1;
+  }
 }
 
 void setupISR1()
 {
+  currrentMillis_interrupt = millis();
+
   // Attach an interrupt to the pin, assign the onChange function as a handler and trigger on changes (LOW or HIGH).
   // attachInterrupt(builtInButton, myIRS1 , FALLING);
 
@@ -577,6 +990,8 @@ void setupISR1()
 
 void setupISR2()
 {
+  currrentMillis_interrupt = millis();
+
   // Attach an interrupt to the pin, assign the onChange function as a handler and trigger on changes (LOW or HIGH).
   // attachInterrupt(builtInButton, myIRS1 , FALLING);
 
@@ -626,21 +1041,6 @@ void listAndReadFiles()
         Serial.write(f.read());
       }
       f.close();
-
-      File f2 = dir.openFile("a");
-      // Serial.println(f.readString());
-      if(!f2)
-      {
-        Serial.println("Failed to open /stats.txt");
-        return;
-      }
-      f2.println(timeClient.getEpochTime());
-      f2.println(timeClient.getFormattedTime());
-      f2.println(ESP.getResetInfo());
-      f2.println("");
-      f2.close();
-      Serial.println("LOGS UPDATED");
-
     }
   }
   Serial.print(str);
@@ -686,7 +1086,7 @@ void setup()
   Serial.println("listAndReadFiles START");
 #endif
 
-  listAndReadFiles(); // TODO: conmment related code in production.
+  listAndReadFiles();
 
 #ifdef DEBUG_AMOR
   Serial.println("listAndReadFiles END");
@@ -717,38 +1117,32 @@ void setup()
 #ifdef DEBUG_AMOR
   Serial.println("setup_ISRs,setup_RGB_leds, wifiManagerSetup END");
   printHeap();
+  Serial.println("setup_async START");
+#endif
+
+  setup_async();
+
+#ifdef DEBUG_AMOR
+  Serial.println("setup_async END");
+  printHeap();
   Serial.println("void Setup end");
 #endif
+}
+
+// this will close connectin with unused/old websockets clients
+void wsCleanup()
+{
+  if (millis() - wsCleanupMillis > 2000)
+  {
+    wsCleanupMillis = millis();
+    ws.cleanupClients();
 
 #ifdef DEBUG_AMOR
-  Serial.println("setup_ISRs,setup_RGB_leds, wifiManagerSetup END");
-  printHeap();
-  Serial.println("setupUNIXTime START");
+
+    Serial.print("wsC");
+    printHeap();
 #endif
-
-  setupUNIXTime();
-
-#ifdef DEBUG_AMOR
-  Serial.println("setupUNIXTime END");
-  printHeap();
-  Serial.println("amorWebsocket_setup START");
-#endif
-
-  // amorWebsocket_setup();
-
-#ifdef DEBUG_AMOR
-  Serial.println("amorWebsocket_setup END");
-  printHeap();
-  Serial.println("setup_mDNS START");
-#endif
-
-  // setup_mDNS();
-
-#ifdef DEBUG_AMOR
-  Serial.println("setup_mDNS END");
-  printHeap();
-  Serial.println("setup_mDNS START");
-#endif
+  }
 }
 
 // functions/steps to execute on interrupt 1
@@ -797,7 +1191,7 @@ void myIRS1_method()
   // printHeap();
   // FirmwareUpdateChaccha();
   // readAndSendFile("config.json");
-  // forget_saved_wifi_creds();
+  forget_saved_wifi_creds();
 }
 
 void disable_touch_for_x_ms(uint16_t x)
@@ -865,7 +1259,7 @@ void restart_device()
   leds[NUM_LEDS - 1] = CRGB::Red;
   FastLED.show();
   delay(1000);
-  ESP.restart(); //TODO: restart or reset the device ?
+  ESP.restart();
 }
 
 void forget_saved_wifi_creds()
@@ -879,16 +1273,15 @@ void forget_saved_wifi_creds()
   wifiManager.resetSettings();
 
 #ifdef DEBUG_AMOR
-  Serial.println(" !!! FORGOT Wifi Id pass :(  !!!");
   Serial.println(ESP.getFreeHeap());
 #endif
 
   delay(500);
-  restart_device();
+  ESP.restart();
 }
 
 // ---- AWS IOT RECONNECT SETUP START ----
-// int clientPubSub_connected_counter = 0;
+int clientPubSub_connected_counter = 0;
 void reconnect_aws()
 {
   // printHeap();
@@ -896,10 +1289,9 @@ void reconnect_aws()
 
   if (!clientPubSub.connected())
   {
-    // clientPubSub_connected_counter++;
+    clientPubSub_connected_counter++;
     if (millis() - reconnect_aws_millis > 5000)
-    {
-      // clientPubSub_connected_counter = 0;
+    { clientPubSub_connected_counter = 0;
 
       reconnect_aws_millis = millis();
 
@@ -907,7 +1299,7 @@ void reconnect_aws()
       FastLED.show();
 
 #ifdef DEBUG_AMOR
-      // Serial.print(clientPubSub_connected_counter);
+      Serial.print(clientPubSub_connected_counter);
       printHeap();
       Serial.print("Attempting MQTT connection...");
       // Serial.print(MQTT_MAX_PACKET_SIZE);
@@ -918,9 +1310,9 @@ void reconnect_aws()
 #ifdef DEBUG_AMOR
         Serial.println("connected");
         printHeap();
-        // Serial.println("espClient.flush();");
-        // espClient.flush();
-        // printHeap();
+        Serial.println("espClient.flush();");
+        espClient.flush();
+        printHeap();
         // Serial.println("espClient.disableKeepAlive();");
         // espClient.disableKeepAlive();
         // printHeap();
@@ -931,46 +1323,20 @@ void reconnect_aws()
         // espClient.stopAll();
         // printHeap();
 
-        // TODO : delete ,not for production
+#endif
         // Once connected, publish an announcement...
         clientPubSub.publish("outTopic", "hello world");
         // ... and resubscribe
         clientPubSub.subscribe("inTopic");
 
-        Serial.println("subscribeDeviceShadow START");
-#endif
-
         // subscribeDeviceShadow();
-
-#ifdef DEBUG_AMOR
-        Serial.println("subscribeDeviceShadow END");
-        printHeap();
-        Serial.println("setup_config_vars START");
-#endif
-
-        setup_config_vars();
-
-#ifdef DEBUG_AMOR
-        Serial.println("setup_config_vars END");
-        printHeap();
-        Serial.println("publish_boot_data START");
-#endif
-
+        // printHeap();
+        // setup_config_vars();
+        // printHeap();
         // publish_boot_data();
-
-#ifdef DEBUG_AMOR
-        Serial.println("publish_boot_data END");
-        printHeap();
-        Serial.println("subscribeDeviceTopics START");
-#endif
-
-        subscribeDeviceTopics();
-
-#ifdef DEBUG_AMOR
-        Serial.println("subscribeDeviceShadow END");
-        printHeap();
-        Serial.println("subscribeDeviceShadow START");
-#endif
+        // printHeap();
+        // subscribeDeviceTopics();
+        // printHeap();
 
 #ifdef DEBUG_AMOR
         printHeap();
@@ -991,8 +1357,6 @@ void reconnect_aws()
         failed_aws_trials_counter++;
         if (failed_aws_trials_counter > 4)
         {
-          //TODO:increase the fail counter count so that user can update its certificates
-          // do i need to disable it so that user can update its its end point and certificates
           restart_device();
         }
 
@@ -1001,8 +1365,12 @@ void reconnect_aws()
         Serial.print("failed, rc=");
         Serial.print(clientPubSub.state());
         Serial.println(" try again in 5 seconds");
+#endif
+
         char buf[256];
         espClient.getLastSSLError(buf, 256);
+
+#ifdef DEBUG_AMOR
         printHeap();
         Serial.print("WiFiClientSecure SSL error: ");
         Serial.println(buf);
@@ -1019,8 +1387,7 @@ void check_AWS_mqtt()
 {
 
   if (!clientPubSub.connected())
-  { 
-    listAndReadFiles();
+  {
     clientPubSub.disconnect();
     reconnect_aws();
   }
@@ -1036,60 +1403,18 @@ void myIRS_check()
   // IRS for in-built button
   if (myISR1_flag)
   {
-    if (currrentMillis_interrupt - lastValidInterruptTime_1 > debounceDuration)
-    {
-      myISR1_flag = 0;
-      lastValidInterruptTime_1 = currrentMillis_interrupt;
-      myIRS1_method();
-    }
-    else
-    {
-      myISR1_flag = 0;
-    }
+    myISR1_flag = 0;
+    lastValidInterruptTime_1 = currrentMillis_interrupt;
+    myIRS1_method();
   }
 
   // IRS for touch sensor module
   if (myISR2_flag)
   {
-    if (currrentMillis_interrupt - lastValidInterruptTime_2 > debounceDuration)
-    {
-      myISR2_flag = 0;
-      lastValidInterruptTime_2 = currrentMillis_interrupt;
-      myIRS2_method();
-    }
-    else
-    {
-      myISR2_flag = 0;
-    }
-  }
-}
+    myISR2_flag = 0;
+    lastValidInterruptTime_2 = currrentMillis_interrupt;
 
-void setupUNIXTimeLoop()
-{
-
-  bool okTC = timeClient.update();
-
-  if ((millis() - timeClient_counter_lastvalid_millis > 6000) && okTC)
-  {
-    timeClient_counter_lastvalid_millis = millis();
-
-    // #ifdef DEBUG_AMOR
-    //     Serial.println("---- 5 sec time update ----");
-    //     Serial.println(timeClient.getEpochTime());
-    //     Serial.println(timeClient.getFormattedTime());
-    // #endif
-
-    if (!setX509TimeFlag)
-    {
-      setX509TimeFlag = true;
-      espClient.setX509Time(timeClient.getEpochTime());
-
-#ifdef DEBUG_AMOR
-      Serial.println("espClient.setX509Time(timeClient.getEpochTime());");
-      Serial.println(timeClient.getEpochTime());
-      Serial.println(timeClient.getFormattedTime());
-#endif
-    }
+    myIRS2_method();
   }
 }
 
@@ -1098,9 +1423,11 @@ void loop()
   // check flags is there any interrupt calls made
   myIRS_check();
 
+  loop_async();
+
+  wsCleanup();
+
   setupUNIXTimeLoop();
 
   check_AWS_mqtt();
-
-  // server and dns loops
 }

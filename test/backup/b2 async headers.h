@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <WiFiManager.h>
 #include <FastLED.h>
+#include "ESPAsyncTCP.h"
+#include "ESPAsyncWebServer.h"
 
 #ifndef AmorLamps_h
 #define AmorLamps_h
@@ -51,6 +53,7 @@ void tickWifiManagerLed();
 void configModeCallback(WiFiManager *myWiFiManager);
 String gethotspotname();
 
+void setup_async();
 
 void setupUNIXTime();
 void amorWebsocket_setup();
@@ -72,11 +75,18 @@ void myIRS2_method();
 
 void reconnect_aws();
 
+void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
+void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
+void onBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total);
+void onRequest(AsyncWebServerRequest *request);
+void handleFileUpload();
+
+
 
 // In void loop
 void myIRS_check();
-
-
+void loop_async();
+void wsCleanup();
 void setupUNIXTimeLoop();
 void check_AWS_mqtt();
 
