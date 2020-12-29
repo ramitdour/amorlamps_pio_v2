@@ -29,3 +29,7 @@ added <_ASYNC> in the end of all libs
 for uploding flies only .bin file
 
 solved the issue for async file write to flash
+
+// #define DEFAULT_MAX_WS_CLIENTS 4
+#define DEFAULT_MAX_WS_CLIENTS 1
+inasync websocket

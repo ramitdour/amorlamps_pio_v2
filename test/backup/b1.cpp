@@ -271,12 +271,8 @@ void readAwsCerts()
 
 #ifdef DEBUG_AMOR
   printHeap();
-#endif
-
-  LittleFS.end();
-
-#ifdef DEBUG_AMOR
-  printHeap();
+  Serial.print("Heap: ");
+  Serial.println(ESP.getFreeHeap());
 #endif
 }
 
@@ -445,7 +441,7 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
 #endif
 
   if (type == WS_EVT_CONNECT)
-  {
+  { 
     ws.cleanupClients(); // got new WS client forget all old ones !
     //client connected
     Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
@@ -659,86 +655,6 @@ void loop_async()
   // static char temp[128];
   // sprintf(temp, "Seconds since boot: %u", millis() / 1000);
   // events.send(temp, "time"); //send event "time"
-}
-
-String readFromConfigJSON(String key)
-{
-  // TODO: check is little fs is begun before this call ?
-  File configFile = LittleFS.open("/config.json", "r");
-  if (!configFile)
-  {
-#ifdef DEBUG_AMOR
-    Serial.println("Failed to open config file");
-#endif
-    // return (String) false;
-    return "ERR-FO";
-  }
-
-  size_t size = configFile.size();
-
-#ifdef DEBUG_AMOR
-  Serial.print("Config file size=");
-  Serial.println(size);
-#endif
-
-  // totalSize = totalSize + size;
-
-  // Serial.print("TOTAL file size FINAL !!! =");
-  // Serial.println(totalSize);
-
-  if (size > 1024 * 3)
-  {
-#ifdef DEBUG_AMOR
-    Serial.println("Config file size is too large");
-#endif
-    // return (String) false;
-    return "ERR-FSL";
-  }
-
-  // Allocate a buffer to store contents of the file.
-  std::unique_ptr<char[]> buf(new char[size]);
-
-  // We don't use String here because ArduinoJson library requires the input
-  // buffer to be mutable. If you don't use ArduinoJson, you may as well
-  // use configFile.readString instead.
-  configFile.readBytes(buf.get(), size);
-
-  StaticJsonDocument<1300> doc;
-
-  auto error = deserializeJson(doc, buf.get());
-
-// printing json data to Serial Port in pretty format
-#ifdef DEBUG_AMOR
-  Serial.println("");
-  // serializeJsonPretty(doc, Serial);
-  Serial.println("");
-#endif
-
-  if (error)
-  {
-#ifdef DEBUG_AMOR
-    Serial.println("Failed to parse config file");
-#endif
-    //return false;
-    // return (String)value;
-    return "ERR-FPF";
-  }
-
-  const char *value = doc[key];
-  // String value = doc[key]; // This didn't worked out
-
-  // Real world application would store these values in some variables for
-  // later use.
-
-#ifdef DEBUG_AMOR
-  Serial.print("Loaded ");
-  Serial.print(key);
-  Serial.print(":");
-  Serial.println(value);
-#endif
-
-  // return true;
-  return value;
 }
 
 // ---- UNIX TIME SETUP END ----
@@ -1012,7 +928,6 @@ void printHeap()
 #endif
 }
 
-// TODO:Delte this function in production
 void listAndReadFiles()
 {
 
@@ -1044,21 +959,9 @@ void listAndReadFiles()
     }
   }
   Serial.print(str);
-  LittleFS.end();
 #ifdef DEBUG_AMOR
   Serial.print("Free Flash>");
   Serial.println(ESP.getFreeSketchSpace());
-#endif
-}
-
-void setup_config_vars()
-{
-  // read variables from config and update them on setup
-
-#ifdef DEBUG_AMOR
-
-  Serial.println(readFromConfigJSON("device_id"));
-  printHeap();
 #endif
 }
 
@@ -1068,40 +971,6 @@ void setup()
   Serial.begin(115200);
   Serial.println("==DEBUGGING ENABLED==");
   printHeap();
-  Serial.println("LittleFS.begin(); START");
-#endif
-
-  LittleFS.begin();
-
-#ifdef DEBUG_AMOR
-  printHeap();
-  Serial.println("setup_config_vars START");
-#endif
-
-  setup_config_vars();
-
-#ifdef DEBUG_AMOR
-  Serial.println("setup_config_vars END");
-  printHeap();
-  Serial.println("listAndReadFiles START");
-#endif
-
-  listAndReadFiles();
-
-#ifdef DEBUG_AMOR
-  Serial.println("listAndReadFiles END");
-  printHeap();
-  Serial.println("readAwsCerts START");
-#endif
-
-  readAwsCerts();
-
-  LittleFS.end();
-
-#ifdef DEBUG_AMOR
-  Serial.println("readAwsCerts END ,  LittleFS.end();");
-  printHeap();
-  Serial.println("setup_ISRs,setup_RGB_leds, wifiManagerSetup START");
 #endif
 
   setup_ISRs();
@@ -1110,22 +979,25 @@ void setup()
 
   setup_RGB_leds();
   // calibrate_setup_touch_sensor();
-
   wifiManagerSetup();
-  digitalWrite(wifiManagerLED, HIGH); // turning off the led after wifi connection
+  digitalWrite(wifiManagerLED, HIGH);
 
 #ifdef DEBUG_AMOR
-  Serial.println("setup_ISRs,setup_RGB_leds, wifiManagerSetup END");
   printHeap();
-  Serial.println("setup_async START");
 #endif
 
   setup_async();
 
+  listAndReadFiles();
+
 #ifdef DEBUG_AMOR
-  Serial.println("setup_async END");
   printHeap();
-  Serial.println("void Setup end");
+#endif
+
+  readAwsCerts();
+
+#ifdef DEBUG_AMOR
+  printHeap();
 #endif
 }
 
@@ -1138,7 +1010,7 @@ void wsCleanup()
     ws.cleanupClients();
 
 #ifdef DEBUG_AMOR
-
+ 
     Serial.print("wsC");
     printHeap();
 #endif
@@ -1281,7 +1153,6 @@ void forget_saved_wifi_creds()
 }
 
 // ---- AWS IOT RECONNECT SETUP START ----
-int clientPubSub_connected_counter = 0;
 void reconnect_aws()
 {
   // printHeap();
@@ -1289,17 +1160,14 @@ void reconnect_aws()
 
   if (!clientPubSub.connected())
   {
-    clientPubSub_connected_counter++;
     if (millis() - reconnect_aws_millis > 5000)
-    { clientPubSub_connected_counter = 0;
-
+    {
       reconnect_aws_millis = millis();
 
       leds[NUM_LEDS - 1] = CRGB::MediumVioletRed;
       FastLED.show();
 
 #ifdef DEBUG_AMOR
-      Serial.print(clientPubSub_connected_counter);
       printHeap();
       Serial.print("Attempting MQTT connection...");
       // Serial.print(MQTT_MAX_PACKET_SIZE);

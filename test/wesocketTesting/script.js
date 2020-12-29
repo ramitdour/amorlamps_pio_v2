@@ -8,6 +8,8 @@ function initWebSocket() {
     Socket.onopen = onOpen;
     Socket.onclose = onClose;
     Socket.onmessage = onMessage; // <-- add this line
+
+
 }
 
 function onOpen(event) {
@@ -24,9 +26,40 @@ function onMessage(event) {
     console.log(event.data);
 }
 
+function downloadCSS(event) {
+    console.log("loading css");
+    // var fileref = document.createElement("link")
+    // fileref.setAttribute("rel", "stylesheet")
+    // fileref.setAttribute("type", "text/css")
+    // fileref.setAttribute("href", "style.css")
+
+    // Get HTML head element 
+    var head = document.getElementsByTagName('HEAD')[0];
+
+    // Create new link Element 
+    var link = document.createElement('link');
+
+    // set the attributes for link element  
+    link.rel = 'stylesheet';
+
+    link.type = 'text/css';
+
+    // link.href = 'style.css';
+    link.href = 'http://192.168.1.27/style.css';
+
+    // Append link element to HTML head 
+    head.appendChild(link);
+
+    console.log("loading css");
+}
+
 function onLoad(event) {
+    console.log("page loaded");
+    // downloadCSS();
     initWebSocket();
     // initButton();
+
+
 }
 
 // function initButton() {

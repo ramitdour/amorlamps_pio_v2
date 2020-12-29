@@ -36,6 +36,7 @@ public:
 void printHeap();
 
 // In void setup
+void setup_config_vars();
 void setup_ISRs();
 void setupISR1();
 void setupISR2();
