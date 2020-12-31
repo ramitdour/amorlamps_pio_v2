@@ -28,6 +28,12 @@ BearSSL::CertStore certStore;
 #include <NTPClient.h>    // To connect Network Time Protocol (NTP) server for epoch time
 #include <WiFiUdp.h>      // Implementations send and receive timestamps using the User Datagram Protocol (UDP)
 
+#include <WebSocketsServer.h>
+
+#include <CertStoreBearSSL.h>
+
+#include <ESP8266HTTPUpdateServer.h>
+
 #include <ArduinoJson.h> // Serial data <-> JSON data , for conversions
 
 // <For PWM led task queue>
@@ -38,6 +44,12 @@ BearSSL::CertStore certStore;
 // HTTP_HEAD
 
 /* ================= Import libraries END ================= */
+
+const char *fsName = "LittleFS";
+FS *fileSystem = &LittleFS;
+LittleFSConfig fileSystemConfig = LittleFSConfig();
+
+static bool fsOK;
 
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.0"};
@@ -109,6 +121,16 @@ WiFiClientSecure espClient;
 
 PubSubClient clientPubSub(AWS_endpoint, 8883, aws_callback, espClient); //set MQTT port number to 8883 as per //standard
 
+// WebSocketsServer
+ESP8266WebServer server;
+WebSocketsServer webSocket = WebSocketsServer(81);
+
+char webpage[] PROGMEM = R"=====( hello world webpage!!! )=====";
+
+// ESP8266HTTPUpdateServer httpUpdater;
+
+// BearSSL::CertStore certStore;
+
 void aws_callback(char *topic, byte *payload, unsigned int length)
 {
 #ifdef DEBUG_AMOR
@@ -141,8 +163,18 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
 
 // ---- CERTIFICATES READ for  AWS IOT SETUP START ----
 
+void publish_boot_data()
+{
+#ifdef DEBUG_AMOR
+  Serial.println("publis_boot_data()");
+#endif
+}
+
 void subscribeDeviceTopics()
 {
+#ifdef DEBUG_AMOR
+  Serial.println("subscribeDeviceTopics()");
+#endif
 }
 
 void readAwsCerts()
@@ -157,17 +189,17 @@ void readAwsCerts()
   FastLED.show();
 
   // TODO:verify that weather closing the opened file later on makes any difference
-  if (!LittleFS.begin())
-  {
-#ifdef DEBUG_AMOR
-    printHeap();
-    Serial.println("Failed to mount file system");
-#endif
-    return;
-  }
+  //   if (!fileSystem->begin())
+  //   {
+  // #ifdef DEBUG_AMOR
+  //     printHeap();
+  //     Serial.println("Failed to mount file system");
+  // #endif
+  //     return;
+  //   }
 
   // Load certificate file
-  File cert = LittleFS.open("/cert.der", "r"); //replace cert.crt with your uploaded file name
+  File cert = fileSystem->open("/cert.der", "r"); //replace cert.crt with your uploaded file name
   if (!cert)
   {
 #ifdef DEBUG_AMOR
@@ -203,7 +235,7 @@ void readAwsCerts()
   cert.close();
 
   // Load private key file
-  File private_key = LittleFS.open("/private.der", "r"); //replace private with your uploaded file name
+  File private_key = fileSystem->open("/private.der", "r"); //replace private with your uploaded file name
   if (!private_key)
   {
 #ifdef DEBUG_AMOR
@@ -239,7 +271,7 @@ void readAwsCerts()
   private_key.close();
 
   // Load CA file
-  File ca = LittleFS.open("/ca.der", "r"); //replace ca with your uploaded file name
+  File ca = fileSystem->open("/ca.der", "r"); //replace ca with your uploaded file name
   if (!ca)
   {
 #ifdef DEBUG_AMOR
@@ -279,7 +311,7 @@ void readAwsCerts()
   printHeap();
 #endif
 
-  LittleFS.end();
+  // fileSystem->end();
 
 #ifdef DEBUG_AMOR
   printHeap();
@@ -289,7 +321,7 @@ void readAwsCerts()
 String readFromConfigJSON(String key)
 {
   // TODO: check is little fs is begun before this call ?
-  File configFile = LittleFS.open("/config.json", "r");
+  File configFile = fileSystem->open("/config.json", "r");
   if (!configFile)
   {
 #ifdef DEBUG_AMOR
@@ -364,6 +396,317 @@ String readFromConfigJSON(String key)
 
   // return true;
   return value;
+}
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
+{
+#ifdef DEBUG_AMOR
+  Serial.println("webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)");
+  printHeap();
+#endif
+}
+
+void replyOK()
+{
+  server.send(200, FPSTR("text/plain"), "ok!");
+}
+
+void replyOKWithMsg(String msg)
+{
+  server.send(200, FPSTR("text/plain"), msg);
+}
+
+void replyServerError(String msg)
+{
+  Serial.println(msg);
+  server.send(500, FPSTR("text/plain"), msg + "\r\n");
+}
+
+/*
+   Handle a file upload request
+*/
+
+File uploadFile;
+
+void handleFileUpload()
+{
+  Serial.println("handleFileUpload() START");
+
+  Serial.println("arguments");
+  for (size_t i = 0; i < server.args(); i++)
+  {
+    /* code */
+    Serial.println(server.arg(i));
+    Serial.println(server.argName(i));
+  }
+  Serial.println("headers");
+  for (size_t i = 0; i < server.headers(); i++)
+  {
+    /* code */
+    Serial.println(server.header(i));
+    Serial.println(server.headerName(i));
+  }
+
+  Serial.println("server.hostHeader()");
+  Serial.println(server.hostHeader());
+
+  String path = server.uri();
+  Serial.println(path);
+  Serial.println(server.urlDecode(server.uri()));
+  Serial.println(String("handleFileRead: ") + path);
+
+  if (!fsOK)
+  {
+    Serial.println("error in opening FS");
+    return replyServerError(FPSTR("FS_INIT_ERROR"));
+  }
+
+  if (server.uri() != "/fsupload")
+  {
+    Serial.println("path not ends with /fsupload");
+    return;
+  }
+
+  HTTPUpload &upload = server.upload();
+
+  Serial.println("-----------------");
+  Serial.print("upload.status>>>");
+  Serial.println(upload.status);
+  Serial.println(server.upload().name);
+  Serial.println(server.upload().filename);
+  Serial.println(server.upload().buf[0]);
+  Serial.println(server.upload().contentLength);
+  Serial.println(server.upload().currentSize);
+  Serial.println(server.upload().status);
+  Serial.println(server.upload().totalSize);
+  Serial.println(server.upload().type);
+  Serial.println("-----------------");
+
+  if (upload.status == UPLOAD_FILE_START)
+  {
+    Serial.println("upload.status == UPLOAD_FILE_START");
+    Serial.print("upload.filename>>>");
+    Serial.println(upload.filename);
+    Serial.print("server.arg(filename) >>>");
+    Serial.println(server.arg("filename"));
+    String filename = upload.filename;
+    // String filename = server.arg("filename");
+    // Make sure paths always start with "/"
+    if (!filename.startsWith("/"))
+    {
+      filename = "/" + filename;
+    }
+    Serial.println(String("handleFileUpload Name: ") + filename);
+
+    uploadFile = fileSystem->open(filename, "w+");
+
+    if (!uploadFile)
+    {
+      Serial.println(String(" CREATE FAILED , filename: ") + filename);
+      return replyServerError(F("CREATE FAILED"));
+    }
+    Serial.println(String("Upload: START, filename: ") + filename);
+  }
+  else if (upload.status == UPLOAD_FILE_WRITE)
+  {
+    Serial.println("upload.status == UPLOAD_FILE_WRITE");
+    if (uploadFile)
+    {
+      size_t bytesWritten = uploadFile.write(upload.buf, upload.currentSize);
+
+      // size_t bytesWritten = 0; //uploadFile.readBytes(upload.buf, upload.currentSize);
+      // for (size_t i = 0; i < upload.currentSize; i++)
+      // {
+      //   uploadFile.print(upload.buf[bytesWritten++]);
+      // }
+      
+
+      Serial.print("bytesWritten>>");
+      Serial.println(bytesWritten);
+
+      if (bytesWritten != upload.currentSize)
+      {
+        Serial.println("WRITE FAILED !!!");
+        return replyServerError(F("WRITE FAILED"));
+      }
+    }
+    Serial.println(String("Upload: WRITE, Bytes: ") + upload.currentSize);
+  }
+  else if (upload.status == UPLOAD_FILE_END)
+  {
+    if (uploadFile)
+    {
+      uploadFile.close();
+      Serial.println("uploadFile.close(); PROPERLY");
+    }
+    Serial.println(String("Upload: END/COMPLETED, Size: ") + upload.totalSize);
+  }
+
+  Serial.println("handleFileUpload() END");
+}
+
+/*
+   Read the given file from the filesystem and stream it back to the client
+*/
+// void handleFileRead(String path)
+void handleFileRead()
+{
+  Serial.println("handleFileRead() START");
+  Serial.println("arguments");
+  for (size_t i = 0; i < server.args(); i++)
+  {
+    /* code */
+    Serial.println(server.arg(i));
+    Serial.println(server.argName(i));
+  }
+  Serial.println("headers");
+  for (size_t i = 0; i < server.headers(); i++)
+  {
+    /* code */
+    Serial.println(server.header(i));
+    Serial.println(server.headerName(i));
+  }
+
+  Serial.println("server.hostHeader()");
+  Serial.println(server.hostHeader());
+
+  String path = server.uri();
+  Serial.println(path);
+  Serial.println(server.urlDecode(server.uri()));
+  Serial.println(String("handleFileRead: ") + path);
+
+  // if (!fsOK) {
+  //   replyServerError(FPSTR(FS_INIT_ERROR));
+  //   return true;
+  // }
+
+  String filename = server.arg("filename");
+
+  if (path.endsWith("/"))
+  {
+    path += "index.html";
+  }
+
+  String contentType;
+  if (server.hasArg("download"))
+  {
+    contentType = F("application/octet-stream");
+  }
+  else
+  {
+    contentType = mime::getContentType(filename);
+  }
+
+  if (!fileSystem->exists(filename))
+  {
+    // File not found, try gzip version
+    filename = filename + ".gz";
+  }
+  if (fileSystem->exists(filename))
+  {
+    File file = fileSystem->open(filename, "r");
+    if (server.streamFile(file, contentType) != file.size())
+    {
+      Serial.println("Sent less data than expected!");
+    }
+    file.close();
+    Serial.println(" file.close();");
+
+    // return true;
+    return;
+  }
+  // return false;
+  replyOKWithMsg("Something is wrong");
+
+  Serial.println("handleFileRead() END");
+}
+
+void handleNotFound()
+{
+  Serial.println("handleNotFound()");
+
+  String uri = ESP8266WebServer::urlDecode(server.uri()); // required to read paths with blanks
+
+  // if (handleFileRead(uri))
+  // {
+  //   return;
+  // }
+
+  String message = "File Not Found\n\n";
+  message.concat("URI: ");
+  message.concat(server.uri());
+  message.concat("\nMethod: ");
+  message.concat((server.method() == HTTP_GET) ? "GET" : "POST");
+  message.concat("\nArguments: ");
+  message.concat(server.args());
+  message.concat("\n");
+  for (uint8_t i = 0; i < server.args(); i++)
+  {
+    message.concat(" ");
+    message.concat(server.argName(i));
+    message.concat(": ");
+    message.concat(server.arg(i));
+    message.concat("\n");
+
+    // message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  }
+  Serial.println(message);
+  server.send(404, "text/plain", message);
+}
+
+void websocket_server_mdns_setup()
+{
+#ifdef DEBUG_AMOR
+  Serial.println("websocket_server_mdns_setup()");
+  printHeap();
+#endif
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    // server_setup();
+    server.on("/", []() {
+      server.send_P(200, "text/html", webpage);
+    });
+
+    server.on("/fs", []() {
+      server.send(200, "text/html", F("<form name='myUploadForm' id='myUploadForm' method='POST' action='/fsupload' enctype='multipart/form-data'><div><label for='filename'>Select file</label><input name='filename' id='filename' type='file'></div><div><label for='fsupload'>PerformUpload</label><input name='fsupload' id='fsupload' type='submit' value='Update'></div></form><br/><form name='myReadForm' id='myReadForm' method='POST' action='/fsread' enctype='multipart/form-data'><div><label for='filename'>Select file</label><input name='filename' id='filename' type='text'></div><div><label for='fsread'>PerformRead</label><input name='fsread' id='fsread' type='submit' value='Read'></div></form>"));
+    });
+
+    // server.on("/fsread", HTTP_POST, replyOK, handleFileRead);
+    // server.on("/fsupload", HTTP_POST, replyOK, handleFileUpload);
+
+    server.on("/fsread", HTTP_POST, handleFileRead, replyOK);
+    // server.on("/fsupload", HTTP_POST, handleFileUpload);
+
+    server.on(
+        "/fsupload", HTTP_POST, []() { // If a POST request is sent to the /edit.html address,
+          server.send(200, "text/plain", "");
+        },
+        handleFileUpload);
+
+    server.serveStatic("/index", LittleFS, "/index.html");
+    server.serveStatic("/style", LittleFS, "/style.css");
+    server.serveStatic("/script", LittleFS, "/script.js");
+    server.serveStatic("/config", LittleFS, "/config.json");
+
+    server.onNotFound(handleNotFound);
+    server.begin();
+
+    webSocket.begin();
+
+    webSocket.onEvent(webSocketEvent);
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("websocket_server_mdns_setup  !WL_CONNECTED");
+    printHeap();
+#endif
+    restart_device();
+  }
+#ifdef DEBUG_AMOR
+  Serial.println("websocket_server_mdns_setup() done");
+  printHeap();
+#endif
 }
 
 // ---- UNIX TIME SETUP END ----
@@ -606,9 +949,9 @@ void listAndReadFiles()
   Serial.println(ESP.getFreeSketchSpace());
 #endif
 
-  LittleFS.begin();
+  // fileSystem->begin();
   String str = "";
-  Dir dir = LittleFS.openDir("/");
+  Dir dir = fileSystem->openDir("/");
   while (dir.next())
   {
     str += dir.fileName();
@@ -627,24 +970,24 @@ void listAndReadFiles()
       }
       f.close();
 
-      File f2 = dir.openFile("a");
-      // Serial.println(f.readString());
-      if(!f2)
-      {
-        Serial.println("Failed to open /stats.txt");
-        return;
-      }
-      f2.println(timeClient.getEpochTime());
-      f2.println(timeClient.getFormattedTime());
-      f2.println(ESP.getResetInfo());
-      f2.println("");
-      f2.close();
-      Serial.println("LOGS UPDATED");
-
+      // for LOGGING
+      // File f2 = dir.openFile("a");
+      // // Serial.println(f.readString());
+      // if (!f2)
+      // {
+      //   Serial.println("Failed to open /stats.txt");
+      //   return;
+      // }
+      // f2.println(timeClient.getEpochTime());
+      // f2.println(timeClient.getFormattedTime());
+      // f2.println(ESP.getResetInfo());
+      // f2.println("");
+      // f2.close();
+      // Serial.println("LOGS UPDATED");
     }
   }
   Serial.print(str);
-  LittleFS.end();
+  // fileSystem->end();
 #ifdef DEBUG_AMOR
   Serial.print("Free Flash>");
   Serial.println(ESP.getFreeSketchSpace());
@@ -668,12 +1011,26 @@ void setup()
   Serial.begin(115200);
   Serial.println("==DEBUGGING ENABLED==");
   printHeap();
-  Serial.println("LittleFS.begin(); START");
+  Serial.println("fileSystem->begin(); START");
 #endif
 
-  LittleFS.begin();
+  fileSystemConfig.setAutoFormat(false);
+  fileSystem->setConfig(fileSystemConfig);
+  fsOK = fileSystem->begin();
+
+  if (fsOK)
+  {
+#ifdef DEBUG_AMOR
+
+    printHeap();
+    Serial.println("Failed to mount file system");
+#endif
+    fileSystem->begin();
+  }
 
 #ifdef DEBUG_AMOR
+  Serial.println(fsOK ? F("Filesystem initialized.") : F("Filesystem init failed!"));
+
   printHeap();
   Serial.println("setup_config_vars START");
 #endif
@@ -696,10 +1053,10 @@ void setup()
 
   readAwsCerts();
 
-  LittleFS.end();
+  // fileSystem->end();
 
 #ifdef DEBUG_AMOR
-  Serial.println("readAwsCerts END ,  LittleFS.end();");
+  Serial.println("readAwsCerts END ,  fileSystem->end();");
   printHeap();
   Serial.println("setup_ISRs,setup_RGB_leds, wifiManagerSetup START");
 #endif
@@ -734,7 +1091,7 @@ void setup()
   Serial.println("amorWebsocket_setup START");
 #endif
 
-  // amorWebsocket_setup();
+  websocket_server_mdns_setup();
 
 #ifdef DEBUG_AMOR
   Serial.println("amorWebsocket_setup END");
@@ -742,7 +1099,7 @@ void setup()
   Serial.println("setup_mDNS START");
 #endif
 
-  // setup_mDNS();
+  // setup_mDNS(); already done above
 
 #ifdef DEBUG_AMOR
   Serial.println("setup_mDNS END");
@@ -887,6 +1244,13 @@ void forget_saved_wifi_creds()
   restart_device();
 }
 
+void websocket_server_mdns_loop()
+{
+  webSocket.loop();
+  server.handleClient();
+  MDNS.update();
+}
+
 // ---- AWS IOT RECONNECT SETUP START ----
 // int clientPubSub_connected_counter = 0;
 void reconnect_aws()
@@ -956,7 +1320,7 @@ void reconnect_aws()
         Serial.println("publish_boot_data START");
 #endif
 
-        // publish_boot_data();
+        publish_boot_data();
 
 #ifdef DEBUG_AMOR
         Serial.println("publish_boot_data END");
@@ -1019,8 +1383,8 @@ void check_AWS_mqtt()
 {
 
   if (!clientPubSub.connected())
-  { 
-    listAndReadFiles();
+  {
+    // listAndReadFiles();
     clientPubSub.disconnect();
     reconnect_aws();
   }
@@ -1103,4 +1467,5 @@ void loop()
   check_AWS_mqtt();
 
   // server and dns loops
+  websocket_server_mdns_loop();
 }

@@ -53,8 +53,8 @@ String gethotspotname();
 
 
 void setupUNIXTime();
-void amorWebsocket_setup();
-void setup_mDNS();
+
+void websocket_server_mdns_setup();
 
 void readAwsCerts();
 
@@ -79,5 +79,6 @@ void myIRS_check();
 
 void setupUNIXTimeLoop();
 void check_AWS_mqtt();
+void websocket_server_mdns_loop();
 
 #endif
