@@ -2,8 +2,11 @@
     "firstboot": "true",
     "device_id": "amorAAA_C7ED21",
 
-    "URL_fw_Version": "https://raw.githubusercontent.com/ramitdour/otaTest/master/version.txt",
-    "URL_fw_Bin": "https://raw.githubusercontent.com/ramitdour/otaTest/master/blink2.bin",
+    "ota_host_url": "raw.githubusercontent.com",
+    "ota_host_port": "443",
+    "ota_host_ca": "ota.der",
+    "URL_fw_Version": "/programmer131/otaFiles/master/version.txt",
+    "URL_fw_Bin": "https://raw.githubusercontent.com/programmer131/otaFiles/master/firmware.bin",
 
     "fingerPrint": "70 94 DE DD E6 C4 69 48 3A 92 70 A1 48 56 78 2D 18 64 E0 B7",
     "fingerPrint_ver": "70 94 DE DD E6 C4 69 48 3A 92 70 A1 48 56 78 2D 18 64 E0 B7",
@@ -36,12 +39,12 @@
     "myrgbHSL": "254255123",
     "toSendHSL": "123255123",
     "x_min_on_value": "20",
+
     "cert_ca": "",
     "cert_cert": "",
     "cert_private": "",
     "cert_ca_ver": "",
     "cert_ca_bin": "",
     "cert_ca_fs": ""
-
 
 }

@@ -86,11 +86,12 @@ const uint8_t wifiManagerLED = 2; // TODO: Upadte as per the requirements
 // Ticker tickerWifiManagerLed(tickWifiManagerLed, 1000, 0, MILLIS);
 Ticker tickerWifiManagerLed;
 
-const char *http_username = "admin";
-const char *http_password = "admin";
+// Not required as of now
+// const char *http_username = "admin";
+// const char *http_password = "admin";
 
 //flag to use from web update to reboot the ESP
-bool shouldReboot = false;
+// bool shouldReboot = false;
 
 String deviceId = "amorAAA_C7ED21";
 String groupId = "123456";
@@ -104,7 +105,8 @@ unsigned long timeClient_counter_lastvalid_millis = 0;
 // uint8_t timeClient_counter = 0;
 
 // const char *AWS_endpoint = "a2q0zes51fm6yg-ats.iot.us-west-2.amazonaws.com"; //MQTT broker ip
-const char *AWS_endpoint = "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com"; //MQTT broker ip
+char *AWS_endpoint = "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com"; //MQTT broker ip
+uint8_t failed_aws_trials_counter_base = 5;                             // to be updated if need to do ota , to disable restart in reconnet to aws loop
 uint8_t failed_aws_trials_counter = 0;
 unsigned long reconnect_aws_millis = 0;
 // const char *aws_topic = "$aws/things/esp8266_C7ED21/";
@@ -361,8 +363,14 @@ String readFromConfigJSON(String key)
   configFile.readBytes(buf.get(), size);
 
   StaticJsonDocument<1300> doc;
+  
+  // StaticJsonDocument<200> filter;
+  // filter[key] = true;
+  // auto error = deserializeJson(doc, buf.get(),DeserializationOption::Filter(filter));
+
 
   auto error = deserializeJson(doc, buf.get());
+  
 
 // printing json data to Serial Port in pretty format
 #ifdef DEBUG_AMOR
@@ -432,27 +440,7 @@ void handleFileUpload()
 {
   Serial.println("handleFileUpload() START");
 
-  Serial.println("arguments");
-  for (size_t i = 0; i < server.args(); i++)
-  {
-    /* code */
-    Serial.println(server.arg(i));
-    Serial.println(server.argName(i));
-  }
-  Serial.println("headers");
-  for (size_t i = 0; i < server.headers(); i++)
-  {
-    /* code */
-    Serial.println(server.header(i));
-    Serial.println(server.headerName(i));
-  }
-
-  Serial.println("server.hostHeader()");
-  Serial.println(server.hostHeader());
-
   String path = server.uri();
-  Serial.println(path);
-  Serial.println(server.urlDecode(server.uri()));
   Serial.println(String("handleFileRead: ") + path);
 
   if (!fsOK)
@@ -469,33 +457,17 @@ void handleFileUpload()
 
   HTTPUpload &upload = server.upload();
 
-  Serial.println("-----------------");
-  Serial.print("upload.status>>>");
-  Serial.println(upload.status);
-  Serial.println(server.upload().name);
-  Serial.println(server.upload().filename);
-  Serial.println(server.upload().buf[0]);
-  Serial.println(server.upload().contentLength);
-  Serial.println(server.upload().currentSize);
-  Serial.println(server.upload().status);
-  Serial.println(server.upload().totalSize);
-  Serial.println(server.upload().type);
-  Serial.println("-----------------");
-
   if (upload.status == UPLOAD_FILE_START)
   {
-    Serial.println("upload.status == UPLOAD_FILE_START");
-    Serial.print("upload.filename>>>");
-    Serial.println(upload.filename);
-    Serial.print("server.arg(filename) >>>");
-    Serial.println(server.arg("filename"));
+
     String filename = upload.filename;
-    // String filename = server.arg("filename");
+
     // Make sure paths always start with "/"
     if (!filename.startsWith("/"))
     {
       filename = "/" + filename;
     }
+
     Serial.println(String("handleFileUpload Name: ") + filename);
 
     uploadFile = fileSystem->open(filename, "w+");
@@ -513,13 +485,6 @@ void handleFileUpload()
     if (uploadFile)
     {
       size_t bytesWritten = uploadFile.write(upload.buf, upload.currentSize);
-
-      // size_t bytesWritten = 0; //uploadFile.readBytes(upload.buf, upload.currentSize);
-      // for (size_t i = 0; i < upload.currentSize; i++)
-      // {
-      //   uploadFile.print(upload.buf[bytesWritten++]);
-      // }
-      
 
       Serial.print("bytesWritten>>");
       Serial.println(bytesWritten);
@@ -541,7 +506,6 @@ void handleFileUpload()
     }
     Serial.println(String("Upload: END/COMPLETED, Size: ") + upload.totalSize);
   }
-
   Serial.println("handleFileUpload() END");
 }
 
@@ -552,33 +516,22 @@ void handleFileUpload()
 void handleFileRead()
 {
   Serial.println("handleFileRead() START");
-  Serial.println("arguments");
-  for (size_t i = 0; i < server.args(); i++)
-  {
-    /* code */
-    Serial.println(server.arg(i));
-    Serial.println(server.argName(i));
-  }
-  Serial.println("headers");
-  for (size_t i = 0; i < server.headers(); i++)
-  {
-    /* code */
-    Serial.println(server.header(i));
-    Serial.println(server.headerName(i));
-  }
-
-  Serial.println("server.hostHeader()");
-  Serial.println(server.hostHeader());
 
   String path = server.uri();
   Serial.println(path);
-  Serial.println(server.urlDecode(server.uri()));
   Serial.println(String("handleFileRead: ") + path);
 
-  // if (!fsOK) {
-  //   replyServerError(FPSTR(FS_INIT_ERROR));
-  //   return true;
-  // }
+  if (!fsOK)
+  {
+    replyServerError(FPSTR("FS_INIT_ERROR"));
+    return;
+  }
+
+  if (!server.hasArg("filename"))
+  {
+    replyServerError(FPSTR("argument not found"));
+    return;
+  }
 
   String filename = server.arg("filename");
 
@@ -679,7 +632,7 @@ void websocket_server_mdns_setup()
 
     server.on(
         "/fsupload", HTTP_POST, []() { // If a POST request is sent to the /edit.html address,
-          server.send(200, "text/plain", "");
+          server.send(200, "text/plain", "ok!");
         },
         handleFileUpload);
 
@@ -707,6 +660,564 @@ void websocket_server_mdns_setup()
   Serial.println("websocket_server_mdns_setup() done");
   printHeap();
 #endif
+}
+
+// DigiCert High Assurance EV Root CA
+const char trustRoot[] PROGMEM = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDxTCCAq2gAwIBAgIQAqxcJmoLQJuPC3nyrkYldzANBgkqhkiG9w0BAQUFADBs
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSswKQYDVQQDEyJEaWdpQ2VydCBIaWdoIEFzc3VyYW5j
+ZSBFViBSb290IENBMB4XDTA2MTExMDAwMDAwMFoXDTMxMTExMDAwMDAwMFowbDEL
+MAkGA1UEBhMCVVMxFTATBgNVBAoTDERpZ2lDZXJ0IEluYzEZMBcGA1UECxMQd3d3
+LmRpZ2ljZXJ0LmNvbTErMCkGA1UEAxMiRGlnaUNlcnQgSGlnaCBBc3N1cmFuY2Ug
+RVYgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMbM5XPm
++9S75S0tMqbf5YE/yc0lSbZxKsPVlDRnogocsF9ppkCxxLeyj9CYpKlBWTrT3JTW
+PNt0OKRKzE0lgvdKpVMSOO7zSW1xkX5jtqumX8OkhPhPYlG++MXs2ziS4wblCJEM
+xChBVfvLWokVfnHoNb9Ncgk9vjo4UFt3MRuNs8ckRZqnrG0AFFoEt7oT61EKmEFB
+Ik5lYYeBQVCmeVyJ3hlKV9Uu5l0cUyx+mM0aBhakaHPQNAQTXKFx01p8VdteZOE3
+hzBWBOURtCmAEvF5OYiiAhF8J2a3iLd48soKqDirCmTCv2ZdlYTBoSUeh10aUAsg
+EsxBu24LUTi4S8sCAwEAAaNjMGEwDgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB/wQF
+MAMBAf8wHQYDVR0OBBYEFLE+w2kD+L9HAdSYJhoIAu9jZCvDMB8GA1UdIwQYMBaA
+FLE+w2kD+L9HAdSYJhoIAu9jZCvDMA0GCSqGSIb3DQEBBQUAA4IBAQAcGgaX3Nec
+nzyIZgYIVyHbIUf4KmeqvxgydkAQV8GK83rZEWWONfqe/EW1ntlMMUu4kehDLI6z
+eM7b41N5cdblIZQB2lWHmiRk9opmzN6cN82oNLFpmyPInngiK3BD41VHMWEZ71jF
+hS9OMPagMRYjyOfiZRYzy78aG6A9+MpeizGLYAiJLQwGXFK3xPkKmNEVX58Svnw2
+Yzi9RKR/5CYrCsSXaQ3pjOLAEFe4yHYSkVXySGnYvCoCWw9E1CAx2/S6cCZdkGCe
+vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep
++OkuE6N36B9K
+-----END CERTIFICATE-----
+)EOF";
+
+void firmware_update_from_fs(String &ota_filename)
+{
+#ifdef DEBUG_AMOR
+  Serial.print("firmware_update_from_fs()");
+  Serial.println(ota_filename);
+  printHeap();
+#endif
+
+  espClient.stopAll();
+  printHeap();
+
+  webSocket.~WebSocketsServer();
+  clientPubSub.~PubSubClient();
+  //
+  server.~ESP8266WebServerTemplate();
+  webSocket.~WebSocketsServer();
+
+  Serial.println("~PubSubClient");
+
+  printHeap();
+
+  // BearSSL::CertStore certStore;
+
+  // String FirmwareVer = {"1.8"};
+  String URL_fw_Version = "/ramitdour/otaTest/master/myBigFile.txt";
+  // String URL_fw_Bin = "https://raw.githubusercontent.com/programmer131/otaFiles/master/firmware.bin";
+  // const char *host = "raw.githubusercontent.com";
+  // const int httpsPort = 443;
+
+  // String FirmwareVer = {"1.8"};
+
+  String host_ca = readFromConfigJSON("ota_host_ca");          //ota.der
+  String host = readFromConfigJSON("ota_host_url");            // "raw.githubusercontent.com"
+  int httpsPort = readFromConfigJSON("ota_host_port").toInt(); // 443
+  // String URL_fw_Version = readFromConfigJSON("URL_fw_Version"); // without host name
+  String URL_fw_Bin = readFromConfigJSON("URL_fw_Bin");
+
+  if (host_ca.length() < 2 ||
+      host.length() < 2 ||
+      httpsPort < 2 ||
+      URL_fw_Version.length() < 2 ||
+      URL_fw_Bin.length() < 2 ||
+      FirmwareVer.length() < 2)
+  {
+    Serial.println("Something is null");
+  }
+
+#ifdef DEBUG_AMOR
+  Serial.print("host_ca >");
+  Serial.println(host_ca);
+  Serial.print("host >");
+  Serial.println(host);
+  Serial.print("httpsPort >");
+  Serial.println(httpsPort);
+  Serial.print("URL_fw_Version >");
+  Serial.println(URL_fw_Version);
+  Serial.print("URL_fw_Bin >");
+  Serial.println(URL_fw_Bin);
+  printHeap();
+#endif
+
+  // Load private key file
+  if (!host_ca.startsWith("/"))
+  {
+    host_ca = "/" + host_ca;
+  }
+
+#ifdef DEBUG_AMOR
+  Serial.print("host_ca > = ");
+  Serial.println(host_ca);
+
+  printHeap();
+#endif
+
+  File ota_ca_file = LittleFS.open(host_ca, "r"); //replace private with your uploaded file name
+  if (!ota_ca_file)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Failed to open host_ca cert file");
+    printHeap();
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Success to open host_ca cert file");
+    printHeap();
+#endif
+  }
+
+  delay(1000);
+
+  if (espClient.loadCACert(ota_ca_file))
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("host_ca cert loaded");
+    printHeap();
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("host_ca cert not loaded");
+    printHeap();
+#endif
+  }
+
+  ota_ca_file.close();
+
+#ifdef DEBUG_AMOR
+  Serial.println("ota_ca_file.close();");
+  printHeap();
+#endif
+
+  // X509List cert(trustRoot);
+
+  // WiFiClientSecure espClient;
+
+#ifdef DEBUG_AMOR
+  printHeap();
+#endif
+
+  // espClient.setTrustAnchors(&cert);
+
+  if (!espClient.connect(host, httpsPort))
+  {
+
+#ifdef DEBUG_AMOR
+    Serial.println("Connection to host failed");
+    printHeap();
+#endif
+
+    return;
+  }
+
+#ifdef DEBUG_AMOR
+  printHeap();
+#endif
+
+  espClient.print(String("GET ") + URL_fw_Version + " HTTP/1.1\r\n" +
+                  "Host: " + host + "\r\n" +
+                  "User-Agent: BuildFailureDetectorESP8266\r\n" +
+                  "Connection: keep-alive\r\n\r\n");
+
+#ifdef DEBUG_AMOR
+  printHeap();
+#endif
+  int size = 0;
+
+  //   while (espClient.connected())
+  //   {
+  // #ifdef DEBUG_AMOR
+  //     printHeap();
+  // #endif
+  //     String line = espClient.readStringUntil('\n');
+
+  //     if (line == "\r")
+  //     {
+  // #ifdef DEBUG_AMOR
+  //       Serial.println("Headers received");
+  //       printHeap();
+  // #endif
+  //       break;
+  //     }
+
+  //     char buf[128];
+  //     espClient.readBytes(buf, 120);
+
+  //     String x = buf;
+  //     Serial.println(x);
+
+  //     // Serial.println("+++++++Started++++++++");
+  //     // Serial.print(String(buf));
+  //     // Serial.println("+++++++END++++++++");
+  //   }
+
+  //   espClient.status();
+
+  //   // String payload = espClient.readStringUntil('\n');
+  int contentLength = -1;
+  int httpCode;
+  espClient.setInsecure();
+
+  while (espClient.connected())
+  {
+    String header = espClient.readStringUntil('\n');
+    Serial.print("h...");
+    Serial.println(header);
+    if (header.startsWith(F("HTTP/1.")))
+    {
+      httpCode = header.substring(9, 12).toInt();
+      Serial.print("httpCode ..>>");
+      Serial.println(httpCode);
+
+      if (httpCode != 200)
+      {
+        Serial.println(String(F("HTTP GET code=")) + String(httpCode));
+        espClient.stop();
+        // return -1;
+        return;
+      }
+    }
+    if (header.startsWith(F("Content-Length: ")))
+    {
+      contentLength = header.substring(15).toInt();
+      Serial.print("contentLength ..>>");
+      Serial.println(contentLength);
+    }
+    if (header == F("\r"))
+    {
+      break;
+    }
+  }
+
+  if (!(contentLength > 0))
+  {
+    Serial.println(F("HTTP content length=0"));
+    espClient.stop();
+    // return -1;
+    return;
+  }
+
+  // // Open file for write
+  // fs::File f = SPIFFS.open(filename, "w+");
+  // if (!f)
+  // {
+  //   errLog( F("file open failed"));
+  //   client.stop();
+  //   return -1;
+  // }
+
+  // Download file
+  int remaining = contentLength;
+  int received;
+  uint8_t buff[128] = {0};
+
+  // read all data from server
+  while (espClient.status()==4 && remaining > 0)
+  {
+    // read up to buffer size
+    received = espClient.readBytes(buff, ((remaining > sizeof(buff)) ? sizeof(buff) : remaining));
+
+    // // write it to file
+    // f.write(buff, received);
+
+    // if (remaining > 0)
+    // {
+    //   remaining -= received;
+    // }
+    // yield();
+
+    Serial.write(buff, received);
+    if (remaining > 0)
+    {
+      remaining -= received;
+    }
+    
+    Serial.println("espClient status --- " + String(espClient.status()));
+    printHeap();
+  }
+
+  if (remaining != 0)
+    Serial.println(" Not recieved full data remaing =" + String(remaining) + "/" + String(contentLength));
+
+  // // Close SPIFFS file
+  // f.close();
+
+  // Stop client
+  espClient.stop();
+
+  // return (remaining == 0 ? contentLength : -1);
+  if (remaining == 0)
+  {
+    Serial.println(contentLength);
+  }
+  else
+  {
+    Serial.println("--1");
+  }
+  // return;
+
+#ifdef DEBUG_AMOR
+  Serial.println("void firmware_update_from_fs(String &ota_filename); END");
+  printHeap();
+#endif
+
+}
+
+void firmware_update_from_config()
+{
+
+#ifdef DEBUG_AMOR
+  Serial.println("firmware_update_from_config START");
+  printHeap();
+#endif
+
+  // espClient.~WiFiClientSecure();
+  espClient.stopAll();
+  printHeap();
+
+  webSocket.~WebSocketsServer();
+  clientPubSub.~PubSubClient();
+  //
+  server.~ESP8266WebServerTemplate();
+  webSocket.~WebSocketsServer();
+
+  Serial.println("~PubSubClient");
+
+  printHeap();
+
+  // BearSSL::CertStore certStore;
+
+  // String FirmwareVer = {"1.8"};
+  // String URL_fw_Version = "/programmer131/otaFiles/master/version.txt";
+  // String URL_fw_Bin = "https://raw.githubusercontent.com/programmer131/otaFiles/master/firmware.bin";
+  // const char *host = "raw.githubusercontent.com";
+  // const int httpsPort = 443;
+
+  // String FirmwareVer = {"1.8"};
+
+  String host_ca = readFromConfigJSON("ota_host_ca");           //ota.der
+  String host = readFromConfigJSON("ota_host_url");             // "raw.githubusercontent.com"
+  int httpsPort = readFromConfigJSON("ota_host_port").toInt();  // 443
+  String URL_fw_Version = readFromConfigJSON("URL_fw_Version"); // without host name
+  String URL_fw_Bin = readFromConfigJSON("URL_fw_Bin");
+
+  if (host_ca.length() < 2 ||
+      host.length() < 2 ||
+      httpsPort < 2 ||
+      URL_fw_Version.length() < 2 ||
+      URL_fw_Version.length() < 2 ||
+      FirmwareVer.length() < 2)
+  {
+    Serial.println("Something is null");
+  }
+
+#ifdef DEBUG_AMOR
+  Serial.print("host_ca >");
+  Serial.println(host_ca);
+  Serial.print("host >");
+  Serial.println(host);
+  Serial.print("httpsPort >");
+  Serial.println(httpsPort);
+  Serial.print("URL_fw_Version >");
+  Serial.println(URL_fw_Version);
+  Serial.print("URL_fw_Bin >");
+  Serial.println(URL_fw_Bin);
+  printHeap();
+#endif
+
+  // Load private key file
+  if (!host_ca.startsWith("/"))
+  {
+    host_ca = "/" + host_ca;
+  }
+
+#ifdef DEBUG_AMOR
+  Serial.print("host_ca > = ");
+  Serial.println(host_ca);
+
+  printHeap();
+#endif
+
+  File ota_ca_file = LittleFS.open(host_ca, "r"); //replace private with your uploaded file name
+  if (!ota_ca_file)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Failed to open host_ca cert file");
+    printHeap();
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Success to open host_ca cert file");
+    printHeap();
+#endif
+  }
+
+  delay(1000);
+
+  if (espClient.loadCACert(ota_ca_file))
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("host_ca cert loaded");
+    printHeap();
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("host_ca cert not loaded");
+    printHeap();
+#endif
+  }
+
+  ota_ca_file.close();
+
+#ifdef DEBUG_AMOR
+  Serial.println("ota_ca_file.close();");
+  printHeap();
+#endif
+
+  // X509List cert(trustRoot);
+
+  // WiFiClientSecure espClient;
+
+#ifdef DEBUG_AMOR
+  printHeap();
+#endif
+
+  // espClient.setTrustAnchors(&cert);
+
+  if (!espClient.connect(host, httpsPort))
+  {
+
+#ifdef DEBUG_AMOR
+    Serial.println("Connection to host failed");
+    printHeap();
+#endif
+
+    return;
+  }
+
+#ifdef DEBUG_AMOR
+  printHeap();
+#endif
+
+  espClient.print(String("GET ") + URL_fw_Version + " HTTP/1.1\r\n" +
+                  "Host: " + host + "\r\n" +
+                  "User-Agent: BuildFailureDetectorESP8266\r\n" +
+                  "Connection: close\r\n\r\n");
+
+#ifdef DEBUG_AMOR
+  printHeap();
+#endif
+
+  while (espClient.connected())
+  {
+#ifdef DEBUG_AMOR
+    printHeap();
+#endif
+    String line = espClient.readStringUntil('\n');
+    if (line == "\r")
+    {
+
+#ifdef DEBUG_AMOR
+      Serial.println("Headers received");
+      printHeap();
+#endif
+      break;
+    }
+  }
+
+  String payload = espClient.readStringUntil('\n');
+
+#ifdef DEBUG_AMOR
+  Serial.println(payload);
+  printHeap();
+#endif
+
+  payload.trim();
+
+  float currentFW = FirmwareVer.toFloat();
+  float gotFW = payload.toFloat();
+
+#ifdef DEBUG_AMOR
+  Serial.print("currentFW=");
+  Serial.println(currentFW);
+  Serial.print("gotFW=");
+  Serial.println(gotFW);
+  printHeap();
+#endif
+
+  if (gotFW > currentFW)
+  {
+// UPDATE FW
+#ifdef DEBUG_AMOR
+    printHeap();
+#endif
+    Serial.println("New firmware detected");
+
+    ESPhttpUpdate.setLedPin(LED_BUILTIN, LOW);
+
+#ifdef DEBUG_AMOR
+    printHeap();
+#endif
+
+    t_httpUpdate_return ret = ESPhttpUpdate.update(espClient, URL_fw_Bin);
+
+#ifdef DEBUG_AMOR
+    printHeap();
+#endif
+
+    switch (ret)
+    {
+    case HTTP_UPDATE_FAILED:
+      Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+      break;
+
+    case HTTP_UPDATE_NO_UPDATES:
+      Serial.println("HTTP_UPDATE_NO_UPDATES");
+      break;
+
+    case HTTP_UPDATE_OK:
+      Serial.println("HTTP_UPDATE_OK");
+      break;
+    }
+  }
+  else
+  {
+    if (currentFW == gotFW)
+    {
+      Serial.println("Device already on latest firmware version");
+    }
+    else
+    {
+      Serial.println("Device already on latest firmware version got FW is old");
+    }
+  }
+
+  // if(payload.equals(FirmwareVer))
+  // {
+  //   Serial.println("Device already on latest firmware version");
+  // }
+  // else
+  // {
+
+  // }
 }
 
 // ---- UNIX TIME SETUP END ----
@@ -997,9 +1508,7 @@ void listAndReadFiles()
 void setup_config_vars()
 {
   // read variables from config and update them on setup
-
 #ifdef DEBUG_AMOR
-
   Serial.println(readFromConfigJSON("device_id"));
   printHeap();
 #endif
@@ -1155,6 +1664,12 @@ void myIRS1_method()
   // FirmwareUpdateChaccha();
   // readAndSendFile("config.json");
   // forget_saved_wifi_creds();
+  // firmware_update_from_config();
+  // String msg = "hii";
+  // firmware_update_from_fs(msg);
+  printHeap();
+  readFromConfigJSON("AWS_endpoint_new");
+  printHeap();
 }
 
 void disable_touch_for_x_ms(uint16_t x)
@@ -1353,7 +1868,7 @@ void reconnect_aws()
       else
       {
         failed_aws_trials_counter++;
-        if (failed_aws_trials_counter > 4)
+        if (failed_aws_trials_counter > failed_aws_trials_counter_base)
         {
           //TODO:increase the fail counter count so that user can update its certificates
           // do i need to disable it so that user can update its its end point and certificates
@@ -1460,12 +1975,13 @@ void setupUNIXTimeLoop()
 void loop()
 {
   // check flags is there any interrupt calls made
+
   myIRS_check();
 
   setupUNIXTimeLoop();
 
-  check_AWS_mqtt();
+  // check_AWS_mqtt(); //TODO:uncomment
 
   // server and dns loops
-  websocket_server_mdns_loop();
+  // websocket_server_mdns_loop(); //TODO:uncomment
 }

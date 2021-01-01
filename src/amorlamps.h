@@ -53,7 +53,8 @@ String gethotspotname();
 
 
 void setupUNIXTime();
-
+void firmware_update_from_config();
+void firmware_update_from_fs(String &ota_filename);
 void websocket_server_mdns_setup();
 
 void readAwsCerts();
