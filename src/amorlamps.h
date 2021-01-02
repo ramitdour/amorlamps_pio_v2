@@ -79,6 +79,42 @@ void myIRS1_method();
 void myIRS2_method();
 
 void reconnect_aws();
+void aws_callback(char *topic, byte *payload, unsigned int length);
+void rpc_method_handler(byte *payload, unsigned int length);
+
+
+enum methodCode
+{
+  MSKIP,
+  MSETHSV,     // 1: set_single_RGB_color
+  MFADEINOUT,  // 2: fade_in_out_RGB_x_times
+  MXMINSON,    // 3: turn_on_RGB_led_for_x_mins
+  MUMYRGB,     // 4: update_my_rgb_hsv
+  MUTOSENDRGB, // 5: update_tosend_rgb_hsv
+  MIRS1,       // 6: myIRS1_method();
+  MIRS2,       // 7: myIRS2_method();
+  MBLEDX       // 8: blink_led_x_times
+
+};
+
+void method_handler(methodCode mc, int args, bool plus1arg, uint8_t s, uint8_t v);
+
+void tick_set_single_RGB_color();
+void tick_turn_on_RGB_led_for_x_mins();
+void tick_fade_in_out_RGB_x_times();
+void tick_blink_led_x_times();
+void tick_turn_on_disco_mode_for_x_mins();
+// void tickWifiManagerLed();
+
+void turn_off_disco_mode();
+void turn_on_disco_mode_for_x_mins(int x);
+void set_single_RGB_color(uint8_t h, uint8_t s, uint8_t v);
+void turn_on_RGB_led_for_x_mins(int x);
+void fade_in_out_RGB_x_times(int x);
+void blink_led_x_times(int x, bool toSendHsv);
+
+void hslS2N(String mystr, uint8_t v);
+String hslN2S(uint8_t h, uint8_t s, uint8_t l);
 
 
 // In void loop

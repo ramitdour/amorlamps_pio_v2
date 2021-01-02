@@ -2,6 +2,7 @@
 
 #include <littlefs.h>         // Although littlefs is inported so FS is not required but , in my case I had to add FS
 #include <Ticker.h>           //for LED status if Wifi
+#include <Ticker2.h>          //For rgbled
 #include <WiFiManager.h>      //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <DNSServer.h>        //Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h> //Local WebServer used to serve the configuration portal
@@ -54,7 +55,7 @@ static bool fsOK;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.0"};
 
-#define DEBUG_AMOR 1; // TODO:comment in production
+// #define DEBUG_AMOR 1; // TODO:comment in production
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -75,8 +76,82 @@ uint8_t myISR2_flag_counter = 0; // TODO: what to do about it ?
 uint8_t myISR2_flag_counter_cooldown = 0;
 unsigned long myISR2_flag_counter_cooldown_millis = 0;
 
+
+#define FASTLED_ESP8266_NODEMCU_PIN_ORDER
+// How many leds in your strip?
+#define NUM_LEDS 10
+// RGB led
+#define DATA_PIN 4 //d2
 // Define the array of leds
 CRGB leds[NUM_LEDS];
+
+uint8_t my_rgb_hsv_values[3] = {65, 255, 0};
+uint8_t tosend_rgb_hsv_values[3] = {100, 255, 0};
+
+uint8_t current_rgb_hsv_values[3] = {0, 0, 0};
+uint8_t desired_rgb_hsv_values[3] = {0, 0, 0};
+
+unsigned long touchEpoch = 0;
+int turn_on_RGB_led_for_x_mins_counter = 0;
+float turn_on_RGB_led_for_x_mins_intensity_delta = 0;
+int x_min_on_value = 20;
+
+bool isToSend_flag = false;
+int fade_in_out_RGB_x_times_counter = 0;
+uint16_t fade_in_out_RGB_x_times_temp_intensity = 0;
+uint16_t fade_in_out_RGB_x_times_temp_intensity_HOLD = 0;
+
+int blink_led_x_times_counter = 0;
+bool blink_led_x_times_toSendHsv = true;
+
+bool rgb_led_is_busy_flag = 0;
+
+// enum methodCode
+// {
+//   MSKIP,
+//   MSETHSV,     // 1: set_single_RGB_color
+//   MFADEINOUT,  // 2: fade_in_out_RGB_x_times
+//   MXMINSON,    // 3: turn_on_RGB_led_for_x_mins
+//   MUMYRGB,     // 4: update_my_rgb_hsv
+//   MUTOSENDRGB, // 5: update_tosend_rgb_hsv
+//   MIRS1,       // 6: myIRS1_method();
+//   MIRS2,       // 7: myIRS2_method();
+//   MBLEDX       // 8: blink_led_x_times
+
+// };
+
+typedef struct RGBQueueTask
+{
+  methodCode rgbLedMethodCode; // which method to call
+  int argument1;               // argument of that method
+
+  uint8_t s; // for set rgb color HSV(h is argument 1) , default 0
+  uint8_t v;
+
+  RGBQueueTask(methodCode c, int arg) // Constructor
+  {
+    rgbLedMethodCode = c;
+    argument1 = arg;
+  }
+
+  // for code 1 set_single_RGB_color
+  RGBQueueTask(methodCode c, int arg, uint8_t sa, uint8_t va) // Constructor
+  {
+    rgbLedMethodCode = c;
+    argument1 = arg;
+    s = sa;
+    v = va;
+  }
+};
+
+// methodcode : method
+// 0: skip ()
+// 1: set_single_RGB_color
+// 2: tick_fade_in_out_RGB_x_times
+// 3: turn_on_RGB_led_for_x_mins
+
+cppQueue rgb_led_task_queue(sizeof(RGBQueueTask), 5, FIFO);
+
 
 // WIFI MANAGER
 // WiFiManager wifiManager; //Soft wifi configuration
@@ -117,8 +192,6 @@ String aws_topic_str = "$aws/things/" + deviceId + "/";
 // char *aws_topic = "$aws/things/esp8266_C7ED21/";
 String aws_group_topic_str = "amorgroup/" + groupId + "/";
 
-void aws_callback(char *topic, byte *payload, unsigned int length);
-
 WiFiClientSecure espClient;
 
 PubSubClient clientPubSub(AWS_endpoint, 8883, aws_callback, espClient); //set MQTT port number to 8883 as per //standard
@@ -133,12 +206,657 @@ char webpage[] PROGMEM = R"=====( hello world webpage!!! )=====";
 
 // BearSSL::CertStore certStore;
 
+
+
+Ticker2 ticker_turn_on_disco_mode_for_x_mins(tick_turn_on_disco_mode_for_x_mins, 10, 0, MILLIS);
+
+void tick_turn_on_disco_mode_for_x_mins()
+{
+
+  static uint8_t hue = 0;
+  static uint8_t i = 0;
+  if (i == NUM_LEDS / 2)
+  {
+    i = 0;
+  }
+  hue++;
+  for (uint8_t j = 0; j < 10; j++)
+  {
+    /* code */
+    leds[j].setHSV((uint8_t)(hue - (j * (13))), 255, 255);
+  }
+
+  FastLED.show();
+}
+
+void turn_on_disco_mode_for_x_mins(int x)
+{
+  disable_touch_for_x_ms(4000);
+  ticker_turn_on_disco_mode_for_x_mins.start();
+}
+
+void turn_off_disco_mode()
+{
+  disable_touch_for_x_ms(3000);
+  ticker_turn_on_disco_mode_for_x_mins.stop();
+}
+
+
+
+
+Ticker2 ticker_turn_on_RGB_led_for_x_mins(tick_turn_on_RGB_led_for_x_mins, 1 * 1000, 0, MILLIS);
+
+void tick_turn_on_RGB_led_for_x_mins()
+{
+
+  turn_on_RGB_led_for_x_mins_counter--;
+#ifdef DEBUG_AMOR
+  Serial.println(turn_on_RGB_led_for_x_mins_counter);
+#endif
+
+  int intensity = turn_on_RGB_led_for_x_mins_counter * turn_on_RGB_led_for_x_mins_intensity_delta;
+  if (intensity <= 0)
+  {
+    intensity = 0;
+  }
+  set_single_RGB_color(my_rgb_hsv_values[0], my_rgb_hsv_values[1], (uint8_t)intensity);
+
+  if (turn_on_RGB_led_for_x_mins_counter <= 0)
+  {
+    ticker_turn_on_RGB_led_for_x_mins.stop();
+    disable_touch_for_x_ms(200);
+
+    set_single_RGB_color(my_rgb_hsv_values[0], my_rgb_hsv_values[1], 0);
+
+#ifdef DEBUG_AMOR
+    Serial.println("==ticker_turn_on_RGB_led_for_x_mins.stop();==");
+#endif
+  }
+}
+
+Ticker2 ticker_set_single_RGB_color(tick_set_single_RGB_color, 100, 0, MICROS_MICROS);
+
+void tick_set_single_RGB_color()
+{
+
+  if (current_rgb_hsv_values[0] > desired_rgb_hsv_values[0])
+  {
+    current_rgb_hsv_values[0]--;
+  }
+  else if (current_rgb_hsv_values[0] < desired_rgb_hsv_values[0])
+  {
+    current_rgb_hsv_values[0]++;
+  }
+
+  if (current_rgb_hsv_values[1] > desired_rgb_hsv_values[1])
+  {
+    current_rgb_hsv_values[1]--;
+  }
+  else if (current_rgb_hsv_values[1] < desired_rgb_hsv_values[1])
+  {
+    current_rgb_hsv_values[1]++;
+  }
+
+  if (current_rgb_hsv_values[2] > desired_rgb_hsv_values[2])
+  {
+    current_rgb_hsv_values[2]--;
+  }
+  else if (current_rgb_hsv_values[2] < desired_rgb_hsv_values[2])
+  {
+    current_rgb_hsv_values[2]++;
+  }
+
+  for (int k = 0; k < NUM_LEDS; k++)
+  {
+    leds[k].setHSV(current_rgb_hsv_values[0], current_rgb_hsv_values[1], current_rgb_hsv_values[2]);
+  }
+
+  FastLED.show();
+
+  if (current_rgb_hsv_values[0] == desired_rgb_hsv_values[0] &&
+      current_rgb_hsv_values[1] == desired_rgb_hsv_values[1] &&
+      current_rgb_hsv_values[2] == desired_rgb_hsv_values[2])
+  {
+    ticker_set_single_RGB_color.stop();
+    // disable_touch_for_x_ms(200);
+    // rgb_led_is_busy_flag = 0;
+    // #ifdef DEBUG_AMOR
+    //     Serial.println("==ticker_set_single_RGB_color.stop();==");
+    // #endif
+  }
+}
+
+void set_single_RGB_color(uint8_t h, uint8_t s, uint8_t v)
+{
+
+  // current_rgb_hsv_values[0] = h;
+  // current_rgb_hsv_values[1] = s;
+  // current_rgb_hsv_values[2] = v;
+
+  desired_rgb_hsv_values[0] = h;
+  desired_rgb_hsv_values[1] = s;
+  desired_rgb_hsv_values[2] = v;
+
+  ticker_set_single_RGB_color.start();
+  // rgb_led_is_busy_flag = 1;
+
+  // #ifdef DEBUG_AMOR
+  //   Serial.println("==setting color t HSV ==");
+  //   Serial.println(h);
+  //   Serial.println(s);
+  //   Serial.println(v);
+  // #endif
+}
+
+void turn_on_RGB_led_for_x_mins(int x)
+{
+
+  if (ticker_turn_on_RGB_led_for_x_mins.state() == RUNNING)
+  {
+    ticker_turn_on_RGB_led_for_x_mins.stop();
+    disable_touch_for_x_ms(200);
+  }
+
+  set_single_RGB_color(my_rgb_hsv_values[0], my_rgb_hsv_values[1], 255);
+
+  if (x != 0)
+  {
+    turn_on_RGB_led_for_x_mins_intensity_delta = 255.0 / (x * 60.0);
+  }
+  else
+  {
+    turn_on_RGB_led_for_x_mins_intensity_delta = 255;
+  }
+
+  turn_on_RGB_led_for_x_mins_counter = 60 * x;
+
+  ticker_turn_on_RGB_led_for_x_mins.start();
+
+#ifdef DEBUG_AMOR
+  Serial.println("==turn_on_RGB_led_for_x_mins_intensity_delta==");
+  Serial.println(turn_on_RGB_led_for_x_mins_intensity_delta);
+  Serial.println("==turn_on_RGB_led_for_x_mins(int x)==");
+#endif
+}
+
+Ticker2 ticker_fade_in_out_RGB_x_times(tick_fade_in_out_RGB_x_times, 3, 0, MILLIS);
+
+void tick_fade_in_out_RGB_x_times()
+{
+  if (isToSend_flag)
+  {
+    set_single_RGB_color(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], fade_in_out_RGB_x_times_temp_intensity);
+  }
+  else
+  {
+    set_single_RGB_color(my_rgb_hsv_values[0], my_rgb_hsv_values[1], fade_in_out_RGB_x_times_temp_intensity);
+  }
+
+  fade_in_out_RGB_x_times_temp_intensity = fade_in_out_RGB_x_times_temp_intensity - 1;
+  fade_in_out_RGB_x_times_counter--;
+
+  if (fade_in_out_RGB_x_times_counter <= 0)
+  {
+    if (isToSend_flag)
+    {
+      set_single_RGB_color(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], fade_in_out_RGB_x_times_temp_intensity_HOLD);
+    }
+    else
+    {
+      set_single_RGB_color(my_rgb_hsv_values[0], my_rgb_hsv_values[1], fade_in_out_RGB_x_times_temp_intensity_HOLD);
+    }
+    ticker_fade_in_out_RGB_x_times.stop();
+    disable_touch_for_x_ms(200);
+    rgb_led_is_busy_flag = 0;
+
+#ifdef DEBUG_AMOR
+    Serial.println("==ticker_fade_in_out_RGB_x_times.stop() ==");
+    Serial.println(current_rgb_hsv_values[2]);
+    Serial.println(desired_rgb_hsv_values[2]);
+    Serial.println(fade_in_out_RGB_x_times_temp_intensity_HOLD);
+
+#endif
+  }
+
+  // #ifdef DEBUG_AMOR
+  //   Serial.println("==fade_in_out_RGB_x_times_temp_intensity==");
+  // #endif
+}
+
+void fade_in_out_RGB_x_times(int x, bool isToSend)
+{
+  isToSend_flag = isToSend;
+  fade_in_out_RGB_x_times_counter = x * 256 * 1;
+  fade_in_out_RGB_x_times_temp_intensity = desired_rgb_hsv_values[2];
+  fade_in_out_RGB_x_times_temp_intensity_HOLD = fade_in_out_RGB_x_times_temp_intensity;
+
+  disable_touch_for_x_ms(2000 * x);
+  ticker_fade_in_out_RGB_x_times.start();
+  rgb_led_is_busy_flag = true;
+#ifdef DEBUG_AMOR
+  Serial.println("==fade_in_out_RGB_x_times_temp_intensity_HOLD ==");
+  Serial.println(fade_in_out_RGB_x_times_temp_intensity_HOLD);
+#endif
+}
+
+Ticker2 ticker_blink_led_x_times(tick_blink_led_x_times, 200, 0, MILLIS);
+
+void tick_blink_led_x_times()
+{
+
+  if (blink_led_x_times_counter % 2)
+  {
+    if (blink_led_x_times_toSendHsv)
+    {
+      set_single_RGB_color(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], 255);
+    }
+    else
+    {
+      set_single_RGB_color(my_rgb_hsv_values[0], my_rgb_hsv_values[1], 255);
+    }
+  }
+  else
+  {
+    if (blink_led_x_times_toSendHsv)
+    {
+      set_single_RGB_color(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], 0);
+    }
+    else
+    {
+      set_single_RGB_color(my_rgb_hsv_values[0], my_rgb_hsv_values[1], 0);
+    }
+  }
+
+  blink_led_x_times_counter--;
+  if (blink_led_x_times_counter <= 0)
+  {
+
+    set_single_RGB_color(my_rgb_hsv_values[0], 0, 0);
+
+    ticker_blink_led_x_times.stop();
+    disable_touch_for_x_ms(500);
+    rgb_led_is_busy_flag = false;
+#ifdef DEBUG_AMOR
+    Serial.println("==ticker_blink_led_x_times.stop(); ==");
+    Serial.println(blink_led_x_times_counter);
+#endif
+  }
+}
+
+void blink_led_x_times(int x, bool toSendHsv)
+{
+
+  blink_led_x_times_counter = 2 * x;
+  blink_led_x_times_toSendHsv = toSendHsv;
+
+  ticker_blink_led_x_times.start();
+  rgb_led_is_busy_flag = true;
+#ifdef DEBUG_AMOR
+  Serial.println("==ticker_blink_led_x_times.start(); ==");
+  Serial.println(blink_led_x_times_counter);
+#endif
+}
+
+void update_my_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
+{
+  my_rgb_hsv_values[0] = h;
+  my_rgb_hsv_values[1] = s;
+
+  // updatetoConfigJSON("myrgbHSL", hslN2S(h, s, v));  //TODO: is it required? NO!
+
+#ifdef DEBUG_AMOR
+  Serial.println("Updated HSV my hsv");
+  Serial.println(my_rgb_hsv_values[0]);
+  Serial.println(my_rgb_hsv_values[1]);
+#endif
+}
+
+void update_tosend_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
+{
+  tosend_rgb_hsv_values[0] = h;
+  tosend_rgb_hsv_values[1] = s;
+
+  updatetoConfigJSON("toSendHSL", hslN2S(h, s, v)); // TODO: to comment or update shadow?
+
+#ifdef DEBUG_AMOR
+  Serial.println("Updated HSV to send hsv");
+  Serial.println(tosend_rgb_hsv_values[0]);
+  Serial.println(tosend_rgb_hsv_values[1]);
+#endif
+}
+
+
+void update_x_min_on_value(int x)
+{
+  x_min_on_value = x;
+
+  // Update in config json
+  bool ok = updatetoConfigJSON("x_min_on_value", String(x));
+  if (ok)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("update_x_min_on_value");
+    Serial.println(readFromConfigJSON("x_min_on_value"));
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("FAILED x_min_on_value");
+    Serial.println(readFromConfigJSON("x_min_on_value"));
+#endif
+  }
+}
+
+void update_groupId(String gID)
+{
+#ifdef DEBUG_AMOR
+  Serial.println("update_groupId");
+  Serial.println(gID);
+#endif
+
+  // groupId = gID;
+  // Update in config json
+  bool ok = updatetoConfigJSON("groupId", gID);
+  if (ok)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("update_groupId");
+    Serial.println(readFromConfigJSON("groupId"));
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("FAILED update_groupId");
+    Serial.println(readFromConfigJSON("groupId"));
+#endif
+  }
+
+  delay(1000);
+  ESP.restart();
+}
+
+
+void method_handler(methodCode mc, int args, bool plus1arg, uint8_t s, uint8_t v)
+{
+  // methodCode
+  turn_off_disco_mode();
+
+  if (!plus1arg)
+  {
+    RGBQueueTask task((methodCode)mc, args);
+    rgb_led_task_queue.push(&task);
+  }
+  else
+  {
+    RGBQueueTask task((methodCode)mc, args, s, v);
+    rgb_led_task_queue.push(&task);
+  }
+}
+
+String hslN2S(uint8_t h, uint8_t s, uint8_t l)
+{
+  String str_hsl = "";
+
+  if (h < 10)
+  {
+    str_hsl = str_hsl + "00" + h;
+  }
+  else if (h < 100)
+  {
+    str_hsl = str_hsl + "0" + h;
+  }
+  else
+  {
+    str_hsl = str_hsl + "" + h;
+  }
+
+  if (s < 10)
+  {
+    str_hsl = str_hsl + "00" + s;
+  }
+  else if (s < 100)
+  {
+    str_hsl = str_hsl + "0" + s;
+  }
+  else
+  {
+    str_hsl = str_hsl + "" + s;
+  }
+
+  if (l < 10)
+  {
+    str_hsl = str_hsl + "00" + l;
+  }
+  else if (l < 100)
+  {
+    str_hsl = str_hsl + "0" + l;
+  }
+  else
+  {
+    str_hsl = str_hsl + "" + l;
+  }
+
+  return str_hsl;
+}
+
+void hslS2N(String mystr, uint8_t isToSendv)
+{
+  // 256256256
+  uint8_t h = mystr.substring(0, 3).toInt();
+  uint8_t s = mystr.substring(3, 6).toInt();
+  uint8_t l = mystr.substring(6).toInt();
+
+#ifdef DEBUG_AMOR
+  Serial.println("== toSendHSL ==");
+  Serial.println(h);
+  Serial.println(s);
+  Serial.println(l);
+  Serial.println();
+#endif
+
+  switch (isToSendv)
+  {
+  case 0:
+    my_rgb_hsv_values[0] = h;
+    my_rgb_hsv_values[1] = s;
+    my_rgb_hsv_values[2] = l;
+    break;
+
+  case 1:
+    tosend_rgb_hsv_values[0] = h;
+    tosend_rgb_hsv_values[1] = s;
+    tosend_rgb_hsv_values[2] = l;
+    break;
+
+  default:
+    break;
+  };
+}
+
+
+
+
+
+
+
 void aws_callback(char *topic, byte *payload, unsigned int length)
 {
 #ifdef DEBUG_AMOR
   Serial.println("aws_callback");
   printHeap();
 #endif
+
+  String topicStr = topic;
+
+  if (topicStr.startsWith("amorgroup"))
+  {
+    // To handle JSON payload msgs
+    StaticJsonDocument<256> doc;
+    // Serial to JSON
+    deserializeJson(doc, payload);
+
+    if (topicStr.endsWith("tunnel"))
+    {
+      if (doc.containsKey("myDId") && doc["myDId"] != deviceId)
+      {
+#ifdef DEBUG_AMOR
+        Serial.println("Incomming light msg from");
+        serializeJson(doc["myDId"], Serial);
+        serializeJson(doc["et"], Serial);
+#endif
+        // check how old is msg , is it need to switch on the timer , then for how namy minutes ?
+        // if et-msg + stay-on-min*60 > current et , then on th light  for remining mins
+        // (et-msg + stay-on-min*60 - current et)/60
+        //  5 + 60*60 - 3595 / 60
+        //  10 /60
+        // 1
+
+        // if device is already on from previous touch then what to do ?
+
+        // else as usual touchEpoch
+
+        unsigned long current_et = timeClient.getEpochTime();
+
+        if ((unsigned long)doc["et"] + x_min_on_value * 60 > current_et)
+        {
+          if ((unsigned long)doc["et"] == touchEpoch)
+          {
+#ifdef DEBUG_AMOR
+            Serial.println(" Already on because of this touch");
+#endif
+          }
+          else
+          {
+            // new touch or old touch jiska timer over nahi hua
+            long timee2 = ((unsigned long)doc["et"] - current_et);
+
+            if (timee2 > -60 && timee2 <= 0)
+            {
+              timee2 = 0;
+            }
+
+            uint8_t ontimee = (uint8_t)((timee2 + (x_min_on_value * 60)) / 60);
+
+            method_handler(MUMYRGB, (uint8_t)doc["c"][0], true, (uint8_t)doc["c"][1], 0);
+            if (ticker_turn_on_RGB_led_for_x_mins.state() == RUNNING)
+            {
+#ifdef DEBUG_AMOR
+              Serial.println("Already on , fade in out then on");
+#endif
+              method_handler(MFADEINOUT, 2, true, 0, 0);
+            }
+
+            touchEpoch = (unsigned long)doc["et"];
+
+#ifdef DEBUG_AMOR
+            Serial.println("Turing on led for x mins ");
+            Serial.println(touchEpoch);
+            Serial.println(ontimee);
+
+#endif
+            method_handler(MXMINSON, ontimee, false, 0, 0);
+          }
+        }
+        else
+        {
+#ifdef DEBUG_AMOR
+          Serial.println(" THIS IS OLD TOUCH !!!");
+#endif
+        }
+      }
+      else
+      {
+#ifdef DEBUG_AMOR
+        Serial.println("Incomming light msg from self or it is null");
+        serializeJson(doc["myDId"], Serial);
+#endif
+      }
+    }
+  }
+  else if (topicStr.startsWith("$aws/things/"))
+  {
+    if (topicStr.endsWith("rpc"))
+    {
+      rpc_method_handler(payload,length);
+    }
+  }
+  else if (topicStr.endsWith(""))
+  {
+  }
+  else
+  {
+  }
+}
+
+void rpc_method_handler(byte *payload, unsigned int length)
+{
+  // To handle JSON payload msgs
+  StaticJsonDocument<256> doc;
+  // Serial to JSON
+  deserializeJson(doc, payload);
+
+#ifdef DEBUG_AMOR
+  Serial.println("making rpc calls method");
+  serializeJson(doc["method"], Serial);
+#endif
+
+  if (doc["method"] == "method_handler")
+  {
+    method_handler((methodCode)doc["mc"], (int)doc["args"], (bool)doc["plus1arg"], (uint8_t)doc["s"], (uint8_t)doc["v"]);
+  }
+  else if (doc["method"] == "turn_off_disco_mode")
+  {
+    turn_off_disco_mode();
+  }
+  else if (doc["method"] == "turn_on_disco_mode_for_x_mins")
+  {
+    turn_on_disco_mode_for_x_mins((int)doc["x"]);
+  }
+  // else if (doc["method"] == "send_responseToAWS")
+  // {
+  //   send_responseToAWS(doc["responseMsg"]);
+  // }
+  // else if (doc["method"] == "send_touch_toGroup")
+  // {
+  //   send_touch_toGroup();
+  // }
+  else if (doc["method"] == "forget_saved_wifi_creds")
+  {
+    forget_saved_wifi_creds();
+  }
+  else if (doc["method"] == "update_x_min_on_value")
+  {
+    update_x_min_on_value((int)doc["x"]);
+  }
+  else if (doc["method"] == "update_groupId")
+  {
+    update_groupId(doc["gID"]);
+  }
+  // else if (doc["method"] == "readFromConfigJSON")
+  // {
+  //   send_responseToAWS(readFromConfigJSON(doc["key"]));
+  // }
+  // else if (doc["method"] == "updatetoConfigJSON")
+  // {
+  //   bool ok = updatetoConfigJSON(doc["key"], doc["value"]);
+  //   send_responseToAWS(String(ok));
+  // }
+  else if (doc["method"] == "restart_device")
+  {
+    restart_device();
+  }
+  // else if (doc["method"] == "FirmwareUpdate")
+  // {
+  //   FirmwareUpdate();
+  // }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("making rpc calls method  NOT FOUND");
+#endif
+  }
 }
 
 // void subscribeDeviceTopics()
@@ -174,8 +892,8 @@ void publish_boot_data()
 #endif
 
   String et = String(timeClient.getEpochTime());
-  // String msg = "{\"deviceId\":\"" + deviceId + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
-  String msg = "{\"deviceId\":\"" + deviceId + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + "longtexthttps://raw.githubusercontent.com/programmer131/otaFiles/master/firmware.bin70 94 DE DD E6 C4 69 48 3A 92 70 A1 48 56 78 2D 18 64 E0 B7a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com" + "\"}";
+  String msg = "{\"deviceId\":\"" + deviceId + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
+  
 
 #ifdef DEBUG_AMOR
   Serial.println(msg);
@@ -189,10 +907,10 @@ void publish_boot_data()
     ok = clientPubSub.publish((aws_topic_str + "bootData").c_str(), msg.c_str());
   }
 
-  // if (ok)
-  // {
-  //   method_handler(MBLEDX, 1, true, 1, 0);
-  // }
+  if (ok)
+  {
+    method_handler(MBLEDX, 1, true, 1, 0);
+  }
 
 #ifdef DEBUG_AMOR
   Serial.println(ok ? "bootData sent OK " : "bootData sent failed!");
@@ -2028,6 +2746,90 @@ void forget_saved_wifi_creds()
   restart_device();
 }
 
+
+
+void rgb_led_task_queue_CheckLoop()
+{
+  if (!rgb_led_task_queue.isEmpty())
+  {
+    if (!rgb_led_is_busy_flag)
+    {
+      // PWMQueueTask temp(0,0) = PWMQueueTask(0, 0);
+      RGBQueueTask temp(MSKIP, 0); //= PWMQueueTask(0, 0);
+      // typedef struct PWMQueueTask PWMQueueTask;
+      // struct PWMQueueTask temp;
+
+      //       MSETHSV,    // 1: set_single_RGB_color
+      // MFADEINOUT, // 2: tick_fade_in_out_RGB_x_times
+      // MXMINSON    // 3: turn_on_RGB_led_for_x_mins
+
+      rgb_led_task_queue.pop(&temp);
+      disable_touch_for_x_ms(200);
+
+#ifdef DEBUG_AMOR
+      Serial.println("length count");
+      Serial.println(rgb_led_task_queue.getCount());
+      Serial.println("popping up a task:!");
+      Serial.println(temp.argument1);
+
+#endif
+
+      switch (temp.rgbLedMethodCode)
+      {
+      case MBLEDX:
+        blink_led_x_times(temp.argument1, temp.s);
+        break;
+
+      case MIRS2:
+        myIRS2_method();
+        break;
+
+      case MIRS1:
+        myIRS1_method();
+        break;
+
+      case MUTOSENDRGB:
+        update_tosend_rgb_hsv(temp.argument1, temp.s, temp.v);
+        break;
+
+      case MUMYRGB:
+        update_my_rgb_hsv(temp.argument1, temp.s, temp.v);
+        break;
+      case MXMINSON:
+        /* code */
+        turn_on_RGB_led_for_x_mins(temp.argument1);
+        break;
+
+      case MFADEINOUT:
+        fade_in_out_RGB_x_times(temp.argument1, temp.s);
+        break;
+
+      case MSETHSV:
+        set_single_RGB_color(temp.argument1, temp.s, temp.v);
+        break;
+
+      default:
+        break;
+      }
+    }
+  }
+}
+
+void timerUpdateLoop()
+{
+  // tickerWifiManagerLed.update();
+  ticker_set_single_RGB_color.update();
+  ticker_turn_on_RGB_led_for_x_mins.update();
+  ticker_fade_in_out_RGB_x_times.update();
+  ticker_blink_led_x_times.update();
+  ticker_turn_on_disco_mode_for_x_mins.update();
+
+  // ticker_test_timer.update(); //TODO : remove in production
+}
+
+
+
+
 void websocket_server_mdns_loop()
 {
   webSocket.loop();
@@ -2253,4 +3055,8 @@ void loop()
 
   // server and dns loops
   websocket_server_mdns_loop(); //TODO:uncomment
+
+  rgb_led_task_queue_CheckLoop();
+  timerUpdateLoop();
+
 }

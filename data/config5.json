@@ -25,6 +25,7 @@
     "AWS_endpoint": "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com",
     "AWS_endpoint_new": "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com",
     "clientPubSub_buff_size": "512",
+    "failed_aws_trials_counter_base": "5",
 
 
     "partner_ids": ["345", "678"],
