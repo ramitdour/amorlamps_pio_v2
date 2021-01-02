@@ -34,6 +34,13 @@ public:
 void printHeap();
 
 // In void setup
+
+bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename);
+bool updatetoConfigJSON(String key, String value);
+
+String readFrom_given_ConfigJSON(String &key, String &filename);
+String readFromConfigJSON(String key);
+
 void setup_config_vars();
 void setup_ISRs();
 void setupISR1();

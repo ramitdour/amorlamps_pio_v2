@@ -1,4 +1,5 @@
 {
+
     "firstboot": "true",
     "device_id": "amorAAA_C7ED21",
 
@@ -7,6 +8,14 @@
     "ota_host_ca": "ota.der",
     "URL_fw_Version": "/programmer131/otaFiles/master/version.txt",
     "URL_fw_Bin": "https://raw.githubusercontent.com/programmer131/otaFiles/master/firmware.bin",
+
+    "d2fs_host_url": "raw.githubusercontent.com",
+    "d2fs_host_port": "443",
+    "d2fs_host_ca": "ota.der",
+    "d2fs_url_file": "/programmer131/otaFiles/master/version.txt",
+    "d2fs_filename": "version.txt",
+    "d2fs_finished_flag": "0",
+
 
     "fingerPrint": "70 94 DE DD E6 C4 69 48 3A 92 70 A1 48 56 78 2D 18 64 E0 B7",
     "fingerPrint_ver": "70 94 DE DD E6 C4 69 48 3A 92 70 A1 48 56 78 2D 18 64 E0 B7",

@@ -320,10 +320,143 @@ void readAwsCerts()
 #endif
 }
 
-String readFromConfigJSON(String key)
+bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename)
 {
+
+  File configFile;
+
+  configFile = fileSystem->open("filename", "r");
+  if (!configFile)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Failed to open config file");
+#endif
+    return false;
+  }
+
+  size_t size = configFile.size();
+#ifdef DEBUG_AMOR
+  Serial.print("Config file size read only=");
+  Serial.println(size);
+#endif
+
+  // totalSize = totalSize + size;
+
+  // Serial.print("TOTAL file size FINAL !!! =");
+  // Serial.println(totalSize);
+
+  if (size > 1024 * 3)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Config file size is too large");
+#endif
+    return false;
+  }
+
+  // Allocate a buffer to store contents of the file.
+  std::unique_ptr<char[]> buf(new char[size]);
+
+  // We don't use String here because ArduinoJson library requires the input
+  // buffer to be mutable. If you don't use ArduinoJson, you may as well
+  // use configFile.readString instead.
+  configFile.readBytes(buf.get(), size);
+
+  StaticJsonDocument<1024> doc;
+
+  DeserializationError error = deserializeJson(doc, buf.get());
+
+#ifdef DEBUG_AMOR //
+  if (error)
+  {
+    Serial.print(F("deserializeJson() failed with code "));
+    Serial.println(error.c_str());
+  }
+  // serializeJsonPretty(doc, Serial); // TODO : delete it only to getconfig file data
+#endif
+  configFile.close();
+
+  // configFile is closed after reading data into doc , now updating the data;
+
+  configFile = fileSystem->open(filename, "w+"); // TODO: w or w+ ?
+  if (!configFile)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Failed to open config file");
+#endif
+    return false;
+  }
+
+  size = configFile.size();
+#ifdef DEBUG_AMOR
+  Serial.print("Config file size write =");
+  Serial.println(size);
+#endif
+
+  if (size > 1024 * 3)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Config file size is too large");
+#endif
+    return false;
+  }
+
+  doc[key.c_str()] = value;
+
+// TODO: check wheather it writes to to serial usb port or serially to flash chip
+#ifdef DEBUG_AMOR
+  Serial.println("serializeJson(doc, configFile);");
+#endif
+
+  serializeJson(doc, configFile);
+
+  configFile.close();
+
+  return true;
+
+}
+
+bool updatetoConfigJSON(String key, String value)
+{
+
+  // 10 config files ranges from 0 - 9
+  char *fileName = "/config0.json";
+
+  // (char)48 == '0' (char)57 == '9'
+
+  String tempStr(fileName);
+
+  for (uint8_t i = 48; i < 58; i++)
+  {
+    fileName[7] = (char)i;
+
+    tempStr = readFrom_given_ConfigJSON(key, tempStr);
+
+    if (!tempStr.startsWith("ERR-"))
+    {
+      tempStr = fileName;
+      return updateto_givenfile_ConfigJSON(key, value, tempStr);
+      //break;
+    }
+  }
+
+  tempStr = fileName; // last value will be "/config9.json";
+  return updateto_givenfile_ConfigJSON(key, value, tempStr);
+
+  // in future will write to any one of 789 only , on basis of size;
+
+  // key not found in any of the file
+  // "ERR-KEY";
+}
+
+String readFrom_given_ConfigJSON(String &key, String &filename)
+{
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println("readFrom_given_ConfigJSON" + key + " from " + filename);
+#endif
   // TODO: check is little fs is begun before this call ?
-  File configFile = fileSystem->open("/config.json", "r");
+
+  File configFile = fileSystem->open(filename, "r");
   if (!configFile)
   {
 #ifdef DEBUG_AMOR
@@ -336,6 +469,7 @@ String readFromConfigJSON(String key)
   size_t size = configFile.size();
 
 #ifdef DEBUG_AMOR
+  printHeap();
   Serial.print("Config file size=");
   Serial.println(size);
 #endif
@@ -361,16 +495,19 @@ String readFromConfigJSON(String key)
   // buffer to be mutable. If you don't use ArduinoJson, you may as well
   // use configFile.readString instead.
   configFile.readBytes(buf.get(), size);
+  printHeap();
 
-  StaticJsonDocument<1300> doc;
-  
-  // StaticJsonDocument<200> filter;
-  // filter[key] = true;
-  // auto error = deserializeJson(doc, buf.get(),DeserializationOption::Filter(filter));
+  StaticJsonDocument<512> doc;
 
+  StaticJsonDocument<256> filter;
 
-  auto error = deserializeJson(doc, buf.get());
-  
+  printHeap();
+  filter[key] = true;
+  auto error = deserializeJson(doc, buf.get(), DeserializationOption::Filter(filter));
+
+  printHeap();
+
+  // auto error = deserializeJson(doc, buf.get());
 
 // printing json data to Serial Port in pretty format
 #ifdef DEBUG_AMOR
@@ -388,22 +525,51 @@ String readFromConfigJSON(String key)
     // return (String)value;
     return "ERR-FPF";
   }
+  if (doc.containsKey(key))
+  {
+    const char *value = doc[key];
+#ifdef DEBUG_AMOR
+    Serial.print("Loaded ");
+    Serial.print(key);
+    Serial.print(":");
+    Serial.println(value);
+#endif
+    // return true;
+    printHeap();
+    return value;
+  }
+  else
+  {
+    // is file mai key he nhi hai
+    return "ERR-KEY";
+  }
 
-  const char *value = doc[key];
   // String value = doc[key]; // This didn't worked out
 
   // Real world application would store these values in some variables for
   // later use.
+}
 
-#ifdef DEBUG_AMOR
-  Serial.print("Loaded ");
-  Serial.print(key);
-  Serial.print(":");
-  Serial.println(value);
-#endif
+String readFromConfigJSON(String key)
+{
+  // 10 config files ranges from 0 - 9
+  char *fileName = "/config0.json";
 
-  // return true;
-  return value;
+  // (char)48 == '0' (char)57 == '9'
+
+  for (size_t i = 48; i < 58; i++)
+  {
+    fileName[7] = (char)i;
+    String tempStr(fileName);
+    tempStr = readFrom_given_ConfigJSON(key, tempStr);
+
+    if (!tempStr.startsWith("ERR-"))
+    {
+      return tempStr;
+    }
+  }
+  // key nt found in any of the file
+  return "ERR-KEY";
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
@@ -689,11 +855,10 @@ vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep
 -----END CERTIFICATE-----
 )EOF";
 
-void firmware_update_from_fs(String &ota_filename)
+void download_file_to_fs()
 {
 #ifdef DEBUG_AMOR
   Serial.print("firmware_update_from_fs()");
-  Serial.println(ota_filename);
   printHeap();
 #endif
 
@@ -713,27 +878,23 @@ void firmware_update_from_fs(String &ota_filename)
   // BearSSL::CertStore certStore;
 
   // String FirmwareVer = {"1.8"};
-  String URL_fw_Version = "/ramitdour/otaTest/master/myBigFile.txt";
+  // String URL_fw_Version = "/ramitdour/otaTest/master/myBigFile.txt";
   // String URL_fw_Bin = "https://raw.githubusercontent.com/programmer131/otaFiles/master/firmware.bin";
   // const char *host = "raw.githubusercontent.com";
   // const int httpsPort = 443;
 
   // String FirmwareVer = {"1.8"};
 
-  String host_ca = readFromConfigJSON("ota_host_ca");          //ota.der
-  String host = readFromConfigJSON("ota_host_url");            // "raw.githubusercontent.com"
-  int httpsPort = readFromConfigJSON("ota_host_port").toInt(); // 443
-  // String URL_fw_Version = readFromConfigJSON("URL_fw_Version"); // without host name
-  String URL_fw_Bin = readFromConfigJSON("URL_fw_Bin");
+  String host_ca = readFromConfigJSON("d2fs_host_ca");          //ota.der
+  String host = readFromConfigJSON("d2fs_host_url");            // "raw.githubusercontent.com"
+  int httpsPort = readFromConfigJSON("d2fs_host_port").toInt(); // 443
+  String d2fs_url_file = readFromConfigJSON("d2fs_url_file");   // without host name
+  bool d2fs_finished_flag = readFromConfigJSON("d2fs_finished_flag").toInt();
+  String filename = readFromConfigJSON("d2fs_filename");
 
-  if (host_ca.length() < 2 ||
-      host.length() < 2 ||
-      httpsPort < 2 ||
-      URL_fw_Version.length() < 2 ||
-      URL_fw_Bin.length() < 2 ||
-      FirmwareVer.length() < 2)
+  if (!filename.startsWith("/"))
   {
-    Serial.println("Something is null");
+    filename = "/" + filename;
   }
 
 #ifdef DEBUG_AMOR
@@ -743,12 +904,25 @@ void firmware_update_from_fs(String &ota_filename)
   Serial.println(host);
   Serial.print("httpsPort >");
   Serial.println(httpsPort);
-  Serial.print("URL_fw_Version >");
-  Serial.println(URL_fw_Version);
-  Serial.print("URL_fw_Bin >");
-  Serial.println(URL_fw_Bin);
+  Serial.print("d2fs_url_file >");
+  Serial.println(d2fs_url_file);
+  Serial.print("d2fs_finished_flag >");
+  Serial.println(d2fs_finished_flag);
+  Serial.print("filename >");
+  Serial.println(filename);
   printHeap();
 #endif
+
+  if (host_ca.length() < 2 ||
+      host.length() < 2 ||
+      httpsPort < 2 ||
+      d2fs_url_file.length() < 2 ||
+      filename.length() < 2 ||
+      FirmwareVer.length() < 2)
+  {
+    Serial.println("Something is null");
+    return;
+  }
 
   // Load private key file
   if (!host_ca.startsWith("/"))
@@ -763,7 +937,7 @@ void firmware_update_from_fs(String &ota_filename)
   printHeap();
 #endif
 
-  File ota_ca_file = LittleFS.open(host_ca, "r"); //replace private with your uploaded file name
+  File ota_ca_file = fileSystem->open(host_ca, "r"); //replace private with your uploaded file name
   if (!ota_ca_file)
   {
 #ifdef DEBUG_AMOR
@@ -828,7 +1002,7 @@ void firmware_update_from_fs(String &ota_filename)
   printHeap();
 #endif
 
-  espClient.print(String("GET ") + URL_fw_Version + " HTTP/1.1\r\n" +
+  espClient.print(String("GET ") + d2fs_url_file + " HTTP/1.1\r\n" +
                   "Host: " + host + "\r\n" +
                   "User-Agent: BuildFailureDetectorESP8266\r\n" +
                   "Connection: keep-alive\r\n\r\n");
@@ -868,9 +1042,10 @@ void firmware_update_from_fs(String &ota_filename)
   //   espClient.status();
 
   //   // String payload = espClient.readStringUntil('\n');
+
   int contentLength = -1;
   int httpCode;
-  espClient.setInsecure();
+  espClient.setInsecure(); // TODO: what this does ?
 
   while (espClient.connected())
   {
@@ -911,14 +1086,17 @@ void firmware_update_from_fs(String &ota_filename)
     return;
   }
 
-  // // Open file for write
-  // fs::File f = SPIFFS.open(filename, "w+");
-  // if (!f)
-  // {
-  //   errLog( F("file open failed"));
-  //   client.stop();
-  //   return -1;
-  // }
+  // Open file for write
+  updatetoConfigJSON("d2fs_finished_flag", "0");
+
+  fs::File f = fileSystem->open(filename, "w+");
+  if (!f)
+  {
+    Serial.println(F("file open failed"));
+    espClient.stop();
+    // return -1;
+    return;
+  }
 
   // Download file
   int remaining = contentLength;
@@ -926,26 +1104,26 @@ void firmware_update_from_fs(String &ota_filename)
   uint8_t buff[128] = {0};
 
   // read all data from server
-  while (espClient.status()==4 && remaining > 0)
+  while (espClient.status() == ESTABLISHED && remaining > 0)
   {
     // read up to buffer size
     received = espClient.readBytes(buff, ((remaining > sizeof(buff)) ? sizeof(buff) : remaining));
 
-    // // write it to file
-    // f.write(buff, received);
+    // write it to file
+    f.write(buff, received);
 
-    // if (remaining > 0)
-    // {
-    //   remaining -= received;
-    // }
-    // yield();
-
-    Serial.write(buff, received);
     if (remaining > 0)
     {
       remaining -= received;
     }
-    
+    yield();
+
+    // Serial.write(buff, received);
+    // if (remaining > 0)
+    // {
+    //   remaining -= received;
+    // }
+
     Serial.println("espClient status --- " + String(espClient.status()));
     printHeap();
   }
@@ -953,8 +1131,8 @@ void firmware_update_from_fs(String &ota_filename)
   if (remaining != 0)
     Serial.println(" Not recieved full data remaing =" + String(remaining) + "/" + String(contentLength));
 
-  // // Close SPIFFS file
-  // f.close();
+  // Close SPIFFS file
+  f.close();
 
   // Stop client
   espClient.stop();
@@ -963,9 +1141,11 @@ void firmware_update_from_fs(String &ota_filename)
   if (remaining == 0)
   {
     Serial.println(contentLength);
+    updatetoConfigJSON("d2fs_finished_flag", "1");
   }
   else
   {
+    updatetoConfigJSON("d2fs_finished_flag", "0");
     Serial.println("--1");
   }
   // return;
@@ -975,6 +1155,7 @@ void firmware_update_from_fs(String &ota_filename)
   printHeap();
 #endif
 
+  restart_device();
 }
 
 void firmware_update_from_config()
@@ -1052,7 +1233,7 @@ void firmware_update_from_config()
   printHeap();
 #endif
 
-  File ota_ca_file = LittleFS.open(host_ca, "r"); //replace private with your uploaded file name
+  File ota_ca_file = fileSystem->open(host_ca, "r"); //replace private with your uploaded file name
   if (!ota_ca_file)
   {
 #ifdef DEBUG_AMOR
@@ -1667,9 +1848,14 @@ void myIRS1_method()
   // firmware_update_from_config();
   // String msg = "hii";
   // firmware_update_from_fs(msg);
-  printHeap();
-  readFromConfigJSON("AWS_endpoint_new");
-  printHeap();
+  // printHeap();
+  // readFromConfigJSON("biggestString5");
+  // readFromConfigJSON("biggestString4");
+  // readFromConfigJSON("biggestString3");
+  // readFromConfigJSON("biggestString2");
+  // readFromConfigJSON("biggestString1");
+  // readFromConfigJSON("biggestString0");
+  // printHeap();
 }
 
 void disable_touch_for_x_ms(uint16_t x)
