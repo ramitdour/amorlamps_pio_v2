@@ -24,6 +24,8 @@
 
     "AWS_endpoint": "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com",
     "AWS_endpoint_new": "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com",
+    "clientPubSub_buff_size": "512",
+
 
     "partner_ids": ["345", "678"],
     "groupId": "123456",
@@ -49,9 +51,9 @@
     "toSendHSL": "123255123",
     "x_min_on_value": "20",
 
-    "cert_ca": "",
-    "cert_cert": "",
-    "cert_private": "",
+    "cert_ca": "/ca.der",
+    "cert_cert": "/cert.der",
+    "cert_private": "/private.der",
     "cert_ca_ver": "",
     "cert_ca_bin": "",
     "cert_ca_fs": ""

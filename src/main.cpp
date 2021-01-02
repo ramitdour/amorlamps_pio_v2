@@ -167,15 +167,56 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
 
 void publish_boot_data()
 {
+
 #ifdef DEBUG_AMOR
   Serial.println("publis_boot_data()");
+  printHeap();
+#endif
+
+  String et = String(timeClient.getEpochTime());
+  // String msg = "{\"deviceId\":\"" + deviceId + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
+  String msg = "{\"deviceId\":\"" + deviceId + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + "longtexthttps://raw.githubusercontent.com/programmer131/otaFiles/master/firmware.bin70 94 DE DD E6 C4 69 48 3A 92 70 A1 48 56 78 2D 18 64 E0 B7a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com" + "\"}";
+
+#ifdef DEBUG_AMOR
+  Serial.println(msg);
+#endif
+
+  bool ok = clientPubSub.publish((aws_topic_str + "bootData").c_str(), msg.c_str());
+
+  if (!ok)
+  {
+    delay(500);
+    ok = clientPubSub.publish((aws_topic_str + "bootData").c_str(), msg.c_str());
+  }
+
+  // if (ok)
+  // {
+  //   method_handler(MBLEDX, 1, true, 1, 0);
+  // }
+
+#ifdef DEBUG_AMOR
+  Serial.println(ok ? "bootData sent OK " : "bootData sent failed!");
 #endif
 }
 
 void subscribeDeviceTopics()
 {
 #ifdef DEBUG_AMOR
+  printHeap();
   Serial.println("subscribeDeviceTopics()");
+  Serial.println(aws_topic_str);
+  Serial.println(aws_group_topic_str);
+#endif
+
+  // TODO: check + or # wild card ?
+  clientPubSub.subscribe((aws_topic_str + "+").c_str());
+  clientPubSub.subscribe((aws_group_topic_str + "+").c_str());
+
+  // send_responseToAWS(deviceId + " = " + readFromConfigJSON("localIP"));
+
+#ifdef DEBUG_AMOR
+  Serial.println("subscribeDeviceTopics() DONEE ...");
+  printHeap();
 #endif
 }
 
@@ -201,7 +242,7 @@ void readAwsCerts()
   //   }
 
   // Load certificate file
-  File cert = fileSystem->open("/cert.der", "r"); //replace cert.crt with your uploaded file name
+  File cert = fileSystem->open(readFromConfigJSON("cert_cert"), "r"); //replace cert.crt with your uploaded file name
   if (!cert)
   {
 #ifdef DEBUG_AMOR
@@ -237,7 +278,7 @@ void readAwsCerts()
   cert.close();
 
   // Load private key file
-  File private_key = fileSystem->open("/private.der", "r"); //replace private with your uploaded file name
+  File private_key = fileSystem->open(readFromConfigJSON("cert_private"), "r"); //replace private with your uploaded file name
   if (!private_key)
   {
 #ifdef DEBUG_AMOR
@@ -273,7 +314,7 @@ void readAwsCerts()
   private_key.close();
 
   // Load CA file
-  File ca = fileSystem->open("/ca.der", "r"); //replace ca with your uploaded file name
+  File ca = fileSystem->open(readFromConfigJSON("cert_ca"), "r"); //replace ca with your uploaded file name
   if (!ca)
   {
 #ifdef DEBUG_AMOR
@@ -1717,6 +1758,13 @@ void setup_config_vars()
   Serial.println(readFromConfigJSON("device_id"));
   printHeap();
 #endif
+  deviceId = readFromConfigJSON("device_id");
+  groupId = readFromConfigJSON("groupId");
+  readFromConfigJSON("AWS_endpoint").toCharArray(AWS_endpoint, 48);
+  failed_aws_trials_counter_base = readFromConfigJSON("failed_aws_trials_counter_base").toInt();
+
+  aws_topic_str = "$aws/things/" + deviceId + "/";
+  aws_group_topic_str = "amorgroup/" + groupId + "/";
 }
 
 void setup()
@@ -1811,11 +1859,18 @@ void setup()
   Serial.println("amorWebsocket_setup END");
   printHeap();
   Serial.println("setup_mDNS START");
+
+  Serial.println("getBufferSize END");
+  Serial.println(clientPubSub.getBufferSize());
 #endif
 
+  clientPubSub.setBufferSize(readFromConfigJSON("clientPubSub_buff_size").toInt());
   // setup_mDNS(); already done above
 
 #ifdef DEBUG_AMOR
+  Serial.println("getBufferSize END");
+  Serial.println(clientPubSub.getBufferSize());
+
   Serial.println("setup_mDNS END");
   printHeap();
   Serial.println("setup_mDNS START");
@@ -2194,8 +2249,8 @@ void loop()
 
   setupUNIXTimeLoop();
 
-  // check_AWS_mqtt(); //TODO:uncomment
+  check_AWS_mqtt(); //TODO:uncomment
 
   // server and dns loops
-  // websocket_server_mdns_loop(); //TODO:uncomment
+  websocket_server_mdns_loop(); //TODO:uncomment
 }
