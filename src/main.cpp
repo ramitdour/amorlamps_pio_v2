@@ -325,7 +325,7 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename)
 
   File configFile;
 
-  configFile = fileSystem->open("filename", "r");
+  configFile = fileSystem->open(filename, "r");
   if (!configFile)
   {
 #ifdef DEBUG_AMOR
@@ -412,12 +412,15 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename)
   configFile.close();
 
   return true;
-
 }
 
 bool updatetoConfigJSON(String key, String value)
 {
 
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println("START updatetoConfigJSON " + key + ":" + value);
+#endif
   // 10 config files ranges from 0 - 9
   char *fileName = "/config0.json";
 
@@ -428,18 +431,26 @@ bool updatetoConfigJSON(String key, String value)
   for (uint8_t i = 48; i < 58; i++)
   {
     fileName[7] = (char)i;
-
+    tempStr = fileName;
     tempStr = readFrom_given_ConfigJSON(key, tempStr);
 
     if (!tempStr.startsWith("ERR-"))
     {
       tempStr = fileName;
+#ifdef DEBUG_AMOR
+      printHeap();
+      Serial.println("END updatetoConfigJSON " + key + ":" + value + tempStr);
+#endif
       return updateto_givenfile_ConfigJSON(key, value, tempStr);
       //break;
     }
   }
 
   tempStr = fileName; // last value will be "/config9.json";
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println("END updatetoConfigJSON" + key + ":" + value + tempStr);
+#endif
   return updateto_givenfile_ConfigJSON(key, value, tempStr);
 
   // in future will write to any one of 789 only , on basis of size;
@@ -552,6 +563,10 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
 
 String readFromConfigJSON(String key)
 {
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println("START readFromConfigJSON " + key);
+#endif
   // 10 config files ranges from 0 - 9
   char *fileName = "/config0.json";
 
@@ -565,10 +580,19 @@ String readFromConfigJSON(String key)
 
     if (!tempStr.startsWith("ERR-"))
     {
+#ifdef DEBUG_AMOR
+      printHeap();
+      Serial.println("END  readFromConfigJSON key=" + key + " val= " + tempStr);
+#endif
       return tempStr;
     }
   }
   // key nt found in any of the file
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println("END  readFromConfigJSON" + key + " ERR-KEY");
+#endif
+
   return "ERR-KEY";
 }
 
@@ -1856,6 +1880,10 @@ void myIRS1_method()
   // readFromConfigJSON("biggestString1");
   // readFromConfigJSON("biggestString0");
   // printHeap();
+
+  readFromConfigJSON("apSSID");
+  updatetoConfigJSON("apSSID", "update1");
+  readFromConfigJSON("apSSID");
 }
 
 void disable_touch_for_x_ms(uint16_t x)
