@@ -76,7 +76,6 @@ uint8_t myISR2_flag_counter = 0; // TODO: what to do about it ?
 uint8_t myISR2_flag_counter_cooldown = 0;
 unsigned long myISR2_flag_counter_cooldown_millis = 0;
 
-
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 // How many leds in your strip?
 #define NUM_LEDS 10
@@ -152,7 +151,6 @@ typedef struct RGBQueueTask
 
 cppQueue rgb_led_task_queue(sizeof(RGBQueueTask), 5, FIFO);
 
-
 // WIFI MANAGER
 // WiFiManager wifiManager; //Soft wifi configuration
 
@@ -206,8 +204,6 @@ char webpage[] PROGMEM = R"=====( hello world webpage!!! )=====";
 
 // BearSSL::CertStore certStore;
 
-
-
 Ticker2 ticker_turn_on_disco_mode_for_x_mins(tick_turn_on_disco_mode_for_x_mins, 10, 0, MILLIS);
 
 void tick_turn_on_disco_mode_for_x_mins()
@@ -240,9 +236,6 @@ void turn_off_disco_mode()
   disable_touch_for_x_ms(3000);
   ticker_turn_on_disco_mode_for_x_mins.stop();
 }
-
-
-
 
 Ticker2 ticker_turn_on_RGB_led_for_x_mins(tick_turn_on_RGB_led_for_x_mins, 1 * 1000, 0, MILLIS);
 
@@ -525,7 +518,6 @@ void update_tosend_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
 #endif
 }
 
-
 void update_x_min_on_value(int x)
 {
   x_min_on_value = x;
@@ -576,7 +568,6 @@ void update_groupId(String gID)
   delay(1000);
   ESP.restart();
 }
-
 
 void method_handler(methodCode mc, int args, bool plus1arg, uint8_t s, uint8_t v)
 {
@@ -674,12 +665,6 @@ void hslS2N(String mystr, uint8_t isToSendv)
     break;
   };
 }
-
-
-
-
-
-
 
 void aws_callback(char *topic, byte *payload, unsigned int length)
 {
@@ -779,7 +764,7 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
   {
     if (topicStr.endsWith("rpc"))
     {
-      rpc_method_handler(payload,length);
+      rpc_method_handler(payload, length);
     }
   }
   else if (topicStr.endsWith(""))
@@ -814,14 +799,14 @@ void rpc_method_handler(byte *payload, unsigned int length)
   {
     turn_on_disco_mode_for_x_mins((int)doc["x"]);
   }
-  // else if (doc["method"] == "send_responseToAWS")
-  // {
-  //   send_responseToAWS(doc["responseMsg"]);
-  // }
-  // else if (doc["method"] == "send_touch_toGroup")
-  // {
-  //   send_touch_toGroup();
-  // }
+  else if (doc["method"] == "send_responseToAWS")
+  {
+    send_responseToAWS(doc["responseMsg"]);
+  }
+  else if (doc["method"] == "send_touch_toGroup")
+  {
+    send_touch_toGroup();
+  }
   else if (doc["method"] == "forget_saved_wifi_creds")
   {
     forget_saved_wifi_creds();
@@ -881,6 +866,67 @@ void rpc_method_handler(byte *payload, unsigned int length)
 // #endif
 // }
 
+void send_responseToAWS(String responseMsg)
+{
+//when calls via rpc are made
+// this sends back response by publishing msg back to
+//$aws/things/esp8266_C7ED21/response
+#ifdef DEBUG_AMOR
+  Serial.println(F("send_reposeToAWS"));
+#endif
+  String et = String(timeClient.getEpochTime());
+  String msg = "{\"respMsg\":\"" + responseMsg + "\",\"et\":\"" + et + "\"}";
+
+#ifdef DEBUG_AMOR
+  Serial.println(msg);
+#endif
+
+  bool ok = clientPubSub.publish((aws_topic_str + "response").c_str(), msg.c_str());
+
+  if (ok)
+  {
+    method_handler(MBLEDX, 1, true, 1, 0);
+  }
+
+#ifdef DEBUG_AMOR
+  Serial.println(ok ? "responseMsg sent OK " : "responseMsg sent failed!");
+#endif
+}
+
+void send_touch_toGroup()
+{
+#ifdef DEBUG_AMOR
+  Serial.println(F("send_touch_toGroup"));
+  printHeap();
+#endif
+  //[255,255,255]
+  String color = "[" + String(tosend_rgb_hsv_values[0]) + "," + tosend_rgb_hsv_values[1] + "]";
+
+  String et = String(timeClient.getEpochTime());
+
+  String msg = "{\"et\":\"" + et + "\",\"c\":" + color + ",\"myDId\":\"" + deviceId + "\"}";
+
+#ifdef DEBUG_AMOR
+  Serial.println(color);
+  Serial.println(msg);
+  printHeap();
+#endif
+
+  // bool ok = clientPubSub.publish(aws_group_topic_str.c_str(), msg.c_str());
+  bool ok = clientPubSub.publish((aws_group_topic_str + "tunnel").c_str(), msg.c_str());
+
+  if (ok)
+  {
+    // method_handler(MBLEDX, 3, true, 1, 0);
+    method_handler(MFADEINOUT, 1, true, 1, 0);
+  }
+
+#ifdef DEBUG_AMOR
+  Serial.println(ok ? "touch events updated!" : "touch events update failed!");
+  printHeap();
+#endif
+}
+
 // ---- CERTIFICATES READ for  AWS IOT SETUP START ----
 
 void publish_boot_data()
@@ -890,10 +936,19 @@ void publish_boot_data()
   Serial.println(F("publis_boot_data()"));
   printHeap();
 #endif
-
-  String et = String(timeClient.getEpochTime());
-  String msg = "{\"deviceId\":\"" + deviceId + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
   
+  unsigned long et = timeClient.getEpochTime();
+
+  struct tm *ptm = gmtime ((time_t *)&et); 
+
+  String msg = "{\"deviceId\":\"" + deviceId 
+  + "\",\"groupId\":\"" + groupId 
+  + "\",\"et\":\"" + et
+  + "\",\"time\":\"" + timeClient.getFormattedTime()
+  + "\",\"date\":\"" +  (ptm->tm_mday) +"-" + (ptm->tm_mon+1)+ "-" +  (ptm->tm_year+1900)
+  + "\",\"localIP\":\"" + WiFi.localIP().toString() 
+  + "\",\"resetInfo\":\"" + ESP.getResetInfo() 
+  + "\"}";
 
 #ifdef DEBUG_AMOR
   Serial.println(msg);
@@ -2746,8 +2801,6 @@ void forget_saved_wifi_creds()
   restart_device();
 }
 
-
-
 void rgb_led_task_queue_CheckLoop()
 {
   if (!rgb_led_task_queue.isEmpty())
@@ -2826,9 +2879,6 @@ void timerUpdateLoop()
 
   // ticker_test_timer.update(); //TODO : remove in production
 }
-
-
-
 
 void websocket_server_mdns_loop()
 {
@@ -3058,5 +3108,4 @@ void loop()
 
   rgb_led_task_queue_CheckLoop();
   timerUpdateLoop();
-
 }

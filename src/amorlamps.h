@@ -78,6 +78,9 @@ void forget_saved_wifi_creds();
 void myIRS1_method();
 void myIRS2_method();
 
+void send_touch_toGroup();
+void send_responseToAWS(String responseMsg);
+
 void reconnect_aws();
 void aws_callback(char *topic, byte *payload, unsigned int length);
 void rpc_method_handler(byte *payload, unsigned int length);
