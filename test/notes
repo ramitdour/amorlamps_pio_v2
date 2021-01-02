@@ -33,3 +33,10 @@ solved the issue for async file write to flash
 // #define DEFAULT_MAX_WS_CLIENTS 4
 #define DEFAULT_MAX_WS_CLIENTS 1
 inasync websocket
+
+
+regex to make F strings
+
+(Serial.print\(){1}("(.*)"){1}
+(Serial.println\(){1}("(.*)"){1}
+$1F($2)

@@ -55,7 +55,7 @@ static bool fsOK;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.0"};
 
-// #define DEBUG_AMOR 1; // TODO:comment in production
+#define DEBUG_AMOR 1; // TODO:comment in production
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -269,7 +269,7 @@ void tick_turn_on_RGB_led_for_x_mins()
     set_single_RGB_color(my_rgb_hsv_values[0], my_rgb_hsv_values[1], 0);
 
 #ifdef DEBUG_AMOR
-    Serial.println("==ticker_turn_on_RGB_led_for_x_mins.stop();==");
+    Serial.println(F("==ticker_turn_on_RGB_led_for_x_mins.stop();=="));
 #endif
   }
 }
@@ -321,7 +321,7 @@ void tick_set_single_RGB_color()
     // disable_touch_for_x_ms(200);
     // rgb_led_is_busy_flag = 0;
     // #ifdef DEBUG_AMOR
-    //     Serial.println("==ticker_set_single_RGB_color.stop();==");
+    //     Serial.println(F("==ticker_set_single_RGB_color.stop();=="));
     // #endif
   }
 }
@@ -341,7 +341,7 @@ void set_single_RGB_color(uint8_t h, uint8_t s, uint8_t v)
   // rgb_led_is_busy_flag = 1;
 
   // #ifdef DEBUG_AMOR
-  //   Serial.println("==setting color t HSV ==");
+  //   Serial.println(F("==setting color t HSV =="));
   //   Serial.println(h);
   //   Serial.println(s);
   //   Serial.println(v);
@@ -373,9 +373,9 @@ void turn_on_RGB_led_for_x_mins(int x)
   ticker_turn_on_RGB_led_for_x_mins.start();
 
 #ifdef DEBUG_AMOR
-  Serial.println("==turn_on_RGB_led_for_x_mins_intensity_delta==");
+  Serial.println(F("==turn_on_RGB_led_for_x_mins_intensity_delta=="));
   Serial.println(turn_on_RGB_led_for_x_mins_intensity_delta);
-  Serial.println("==turn_on_RGB_led_for_x_mins(int x)==");
+  Serial.println(F("==turn_on_RGB_led_for_x_mins(int x)=="));
 #endif
 }
 
@@ -410,7 +410,7 @@ void tick_fade_in_out_RGB_x_times()
     rgb_led_is_busy_flag = 0;
 
 #ifdef DEBUG_AMOR
-    Serial.println("==ticker_fade_in_out_RGB_x_times.stop() ==");
+    Serial.println(F("==ticker_fade_in_out_RGB_x_times.stop() =="));
     Serial.println(current_rgb_hsv_values[2]);
     Serial.println(desired_rgb_hsv_values[2]);
     Serial.println(fade_in_out_RGB_x_times_temp_intensity_HOLD);
@@ -419,7 +419,7 @@ void tick_fade_in_out_RGB_x_times()
   }
 
   // #ifdef DEBUG_AMOR
-  //   Serial.println("==fade_in_out_RGB_x_times_temp_intensity==");
+  //   Serial.println(F("==fade_in_out_RGB_x_times_temp_intensity=="));
   // #endif
 }
 
@@ -434,7 +434,7 @@ void fade_in_out_RGB_x_times(int x, bool isToSend)
   ticker_fade_in_out_RGB_x_times.start();
   rgb_led_is_busy_flag = true;
 #ifdef DEBUG_AMOR
-  Serial.println("==fade_in_out_RGB_x_times_temp_intensity_HOLD ==");
+  Serial.println(F("==fade_in_out_RGB_x_times_temp_intensity_HOLD =="));
   Serial.println(fade_in_out_RGB_x_times_temp_intensity_HOLD);
 #endif
 }
@@ -477,7 +477,7 @@ void tick_blink_led_x_times()
     disable_touch_for_x_ms(500);
     rgb_led_is_busy_flag = false;
 #ifdef DEBUG_AMOR
-    Serial.println("==ticker_blink_led_x_times.stop(); ==");
+    Serial.println(F("==ticker_blink_led_x_times.stop(); =="));
     Serial.println(blink_led_x_times_counter);
 #endif
   }
@@ -492,7 +492,7 @@ void blink_led_x_times(int x, bool toSendHsv)
   ticker_blink_led_x_times.start();
   rgb_led_is_busy_flag = true;
 #ifdef DEBUG_AMOR
-  Serial.println("==ticker_blink_led_x_times.start(); ==");
+  Serial.println(F("==ticker_blink_led_x_times.start(); =="));
   Serial.println(blink_led_x_times_counter);
 #endif
 }
@@ -505,7 +505,7 @@ void update_my_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
   // updatetoConfigJSON("myrgbHSL", hslN2S(h, s, v));  //TODO: is it required? NO!
 
 #ifdef DEBUG_AMOR
-  Serial.println("Updated HSV my hsv");
+  Serial.println(F("Updated HSV my hsv"));
   Serial.println(my_rgb_hsv_values[0]);
   Serial.println(my_rgb_hsv_values[1]);
 #endif
@@ -519,7 +519,7 @@ void update_tosend_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
   updatetoConfigJSON("toSendHSL", hslN2S(h, s, v)); // TODO: to comment or update shadow?
 
 #ifdef DEBUG_AMOR
-  Serial.println("Updated HSV to send hsv");
+  Serial.println(F("Updated HSV to send hsv"));
   Serial.println(tosend_rgb_hsv_values[0]);
   Serial.println(tosend_rgb_hsv_values[1]);
 #endif
@@ -535,14 +535,14 @@ void update_x_min_on_value(int x)
   if (ok)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("update_x_min_on_value");
+    Serial.println(F("update_x_min_on_value"));
     Serial.println(readFromConfigJSON("x_min_on_value"));
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
-    Serial.println("FAILED x_min_on_value");
+    Serial.println(F("FAILED x_min_on_value"));
     Serial.println(readFromConfigJSON("x_min_on_value"));
 #endif
   }
@@ -551,7 +551,7 @@ void update_x_min_on_value(int x)
 void update_groupId(String gID)
 {
 #ifdef DEBUG_AMOR
-  Serial.println("update_groupId");
+  Serial.println(F("update_groupId"));
   Serial.println(gID);
 #endif
 
@@ -561,14 +561,14 @@ void update_groupId(String gID)
   if (ok)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("update_groupId");
+    Serial.println(F("update_groupId"));
     Serial.println(readFromConfigJSON("groupId"));
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
-    Serial.println("FAILED update_groupId");
+    Serial.println(F("FAILED update_groupId"));
     Serial.println(readFromConfigJSON("groupId"));
 #endif
   }
@@ -649,7 +649,7 @@ void hslS2N(String mystr, uint8_t isToSendv)
   uint8_t l = mystr.substring(6).toInt();
 
 #ifdef DEBUG_AMOR
-  Serial.println("== toSendHSL ==");
+  Serial.println(F("== toSendHSL =="));
   Serial.println(h);
   Serial.println(s);
   Serial.println(l);
@@ -684,7 +684,7 @@ void hslS2N(String mystr, uint8_t isToSendv)
 void aws_callback(char *topic, byte *payload, unsigned int length)
 {
 #ifdef DEBUG_AMOR
-  Serial.println("aws_callback");
+  Serial.println(F("aws_callback"));
   printHeap();
 #endif
 
@@ -702,7 +702,7 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
       if (doc.containsKey("myDId") && doc["myDId"] != deviceId)
       {
 #ifdef DEBUG_AMOR
-        Serial.println("Incomming light msg from");
+        Serial.println(F("Incomming light msg from"));
         serializeJson(doc["myDId"], Serial);
         serializeJson(doc["et"], Serial);
 #endif
@@ -724,7 +724,7 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
           if ((unsigned long)doc["et"] == touchEpoch)
           {
 #ifdef DEBUG_AMOR
-            Serial.println(" Already on because of this touch");
+            Serial.println(F(" Already on because of this touch"));
 #endif
           }
           else
@@ -743,7 +743,7 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
             if (ticker_turn_on_RGB_led_for_x_mins.state() == RUNNING)
             {
 #ifdef DEBUG_AMOR
-              Serial.println("Already on , fade in out then on");
+              Serial.println(F("Already on , fade in out then on"));
 #endif
               method_handler(MFADEINOUT, 2, true, 0, 0);
             }
@@ -751,7 +751,7 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
             touchEpoch = (unsigned long)doc["et"];
 
 #ifdef DEBUG_AMOR
-            Serial.println("Turing on led for x mins ");
+            Serial.println(F("Turing on led for x mins "));
             Serial.println(touchEpoch);
             Serial.println(ontimee);
 
@@ -762,14 +762,14 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
         else
         {
 #ifdef DEBUG_AMOR
-          Serial.println(" THIS IS OLD TOUCH !!!");
+          Serial.println(F(" THIS IS OLD TOUCH !!!"));
 #endif
         }
       }
       else
       {
 #ifdef DEBUG_AMOR
-        Serial.println("Incomming light msg from self or it is null");
+        Serial.println(F("Incomming light msg from self or it is null"));
         serializeJson(doc["myDId"], Serial);
 #endif
       }
@@ -798,7 +798,7 @@ void rpc_method_handler(byte *payload, unsigned int length)
   deserializeJson(doc, payload);
 
 #ifdef DEBUG_AMOR
-  Serial.println("making rpc calls method");
+  Serial.println(F("making rpc calls method"));
   serializeJson(doc["method"], Serial);
 #endif
 
@@ -854,7 +854,7 @@ void rpc_method_handler(byte *payload, unsigned int length)
   else
   {
 #ifdef DEBUG_AMOR
-    Serial.println("making rpc calls method  NOT FOUND");
+    Serial.println(F("making rpc calls method  NOT FOUND"));
 #endif
   }
 }
@@ -863,7 +863,7 @@ void rpc_method_handler(byte *payload, unsigned int length)
 // {
 
 // #ifdef DEBUG_AMOR
-//   Serial.println("subscribeDeviceTopics before");
+//   Serial.println(F("subscribeDeviceTopics before"));
 //   Serial.println(aws_topic_str);
 //   Serial.println(aws_group_topic_str);
 // #endif
@@ -876,7 +876,7 @@ void rpc_method_handler(byte *payload, unsigned int length)
 //   send_responseToAWS(deviceId + " = " + readFromConfigJSON("localIP"));
 
 // #ifdef DEBUG_AMOR
-//   Serial.println("subscribeDeviceTopics DONEE ...");
+//   Serial.println(F("subscribeDeviceTopics DONEE ..."));
 //   Serial.println(ESP.getFreeHeap());
 // #endif
 // }
@@ -887,7 +887,7 @@ void publish_boot_data()
 {
 
 #ifdef DEBUG_AMOR
-  Serial.println("publis_boot_data()");
+  Serial.println(F("publis_boot_data()"));
   printHeap();
 #endif
 
@@ -921,7 +921,7 @@ void subscribeDeviceTopics()
 {
 #ifdef DEBUG_AMOR
   printHeap();
-  Serial.println("subscribeDeviceTopics()");
+  Serial.println(F("subscribeDeviceTopics()"));
   Serial.println(aws_topic_str);
   Serial.println(aws_group_topic_str);
 #endif
@@ -933,7 +933,7 @@ void subscribeDeviceTopics()
   // send_responseToAWS(deviceId + " = " + readFromConfigJSON("localIP"));
 
 #ifdef DEBUG_AMOR
-  Serial.println("subscribeDeviceTopics() DONEE ...");
+  Serial.println(F("subscribeDeviceTopics() DONEE ..."));
   printHeap();
 #endif
 }
@@ -941,7 +941,7 @@ void subscribeDeviceTopics()
 void readAwsCerts()
 {
 #ifdef DEBUG_AMOR
-  Serial.print("Heap: ");
+  Serial.print(F("Heap: "));
   Serial.println(ESP.getFreeHeap());
   printHeap();
 #endif
@@ -954,7 +954,7 @@ void readAwsCerts()
   //   {
   // #ifdef DEBUG_AMOR
   //     printHeap();
-  //     Serial.println("Failed to mount file system");
+  //     Serial.println(F("Failed to mount file system"));
   // #endif
   //     return;
   //   }
@@ -965,14 +965,14 @@ void readAwsCerts()
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("Failed to open cert file");
+    Serial.println(F("Failed to open cert file"));
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("Success to open cert file");
+    Serial.println(F("Success to open cert file"));
 #endif
   }
 
@@ -982,14 +982,14 @@ void readAwsCerts()
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("cert loaded");
+    Serial.println(F("cert loaded"));
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("cert not loaded");
+    Serial.println(F("cert not loaded"));
 #endif
   }
 
@@ -1001,14 +1001,14 @@ void readAwsCerts()
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("Failed to open private cert file");
+    Serial.println(F("Failed to open private cert file"));
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("Success to open private cert file");
+    Serial.println(F("Success to open private cert file"));
 #endif
   }
 
@@ -1018,14 +1018,14 @@ void readAwsCerts()
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("private key loaded");
+    Serial.println(F("private key loaded"));
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("private key not loaded");
+    Serial.println(F("private key not loaded"));
 #endif
   }
 
@@ -1037,14 +1037,14 @@ void readAwsCerts()
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("Failed to open ca ");
+    Serial.println(F("Failed to open ca "));
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("Success to open ca");
+    Serial.println(F("Success to open ca"));
 #endif
   }
 
@@ -1054,7 +1054,7 @@ void readAwsCerts()
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("ca loaded");
+    Serial.println(F("ca loaded"));
 #endif
   }
 
@@ -1062,7 +1062,7 @@ void readAwsCerts()
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("ca failed");
+    Serial.println(F("ca failed"));
 #endif
   }
 
@@ -1088,26 +1088,26 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename)
   if (!configFile)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Failed to open config file");
+    Serial.println(F("Failed to open config file"));
 #endif
     return false;
   }
 
   size_t size = configFile.size();
 #ifdef DEBUG_AMOR
-  Serial.print("Config file size read only=");
+  Serial.print(F("Config file size read only="));
   Serial.println(size);
 #endif
 
   // totalSize = totalSize + size;
 
-  // Serial.print("TOTAL file size FINAL !!! =");
+  // Serial.print(F("TOTAL file size FINAL !!! ="));
   // Serial.println(totalSize);
 
   if (size > 1024 * 3)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Config file size is too large");
+    Serial.println(F("Config file size is too large"));
 #endif
     return false;
   }
@@ -1140,21 +1140,21 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename)
   if (!configFile)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Failed to open config file");
+    Serial.println(F("Failed to open config file"));
 #endif
     return false;
   }
 
   size = configFile.size();
 #ifdef DEBUG_AMOR
-  Serial.print("Config file size write =");
+  Serial.print(F("Config file size write ="));
   Serial.println(size);
 #endif
 
   if (size > 1024 * 3)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Config file size is too large");
+    Serial.println(F("Config file size is too large"));
 #endif
     return false;
   }
@@ -1163,7 +1163,7 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename)
 
 // TODO: check wheather it writes to to serial usb port or serially to flash chip
 #ifdef DEBUG_AMOR
-  Serial.println("serializeJson(doc, configFile);");
+  Serial.println(F("serializeJson(doc, configFile);"));
 #endif
 
   serializeJson(doc, configFile);
@@ -1230,7 +1230,7 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
   if (!configFile)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Failed to open config file");
+    Serial.println(F("Failed to open config file"));
 #endif
     // return (String) false;
     return "ERR-FO";
@@ -1240,19 +1240,19 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
 
 #ifdef DEBUG_AMOR
   printHeap();
-  Serial.print("Config file size=");
+  Serial.print(F("Config file size="));
   Serial.println(size);
 #endif
 
   // totalSize = totalSize + size;
 
-  // Serial.print("TOTAL file size FINAL !!! =");
+  // Serial.print(F("TOTAL file size FINAL !!! ="));
   // Serial.println(totalSize);
 
   if (size > 1024 * 3)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Config file size is too large");
+    Serial.println(F("Config file size is too large"));
 #endif
     // return (String) false;
     return "ERR-FSL";
@@ -1281,15 +1281,15 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
 
 // printing json data to Serial Port in pretty format
 #ifdef DEBUG_AMOR
-  Serial.println("");
+  Serial.println(F(""));
   // serializeJsonPretty(doc, Serial);
-  Serial.println("");
+  Serial.println(F(""));
 #endif
 
   if (error)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Failed to parse config file");
+    Serial.println(F("Failed to parse config file"));
 #endif
     //return false;
     // return (String)value;
@@ -1299,9 +1299,9 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
   {
     const char *value = doc[key];
 #ifdef DEBUG_AMOR
-    Serial.print("Loaded ");
+    Serial.print(F("Loaded "));
     Serial.print(key);
-    Serial.print(":");
+    Serial.print(F(":"));
     Serial.println(value);
 #endif
     // return true;
@@ -1358,7 +1358,7 @@ String readFromConfigJSON(String key)
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
 #ifdef DEBUG_AMOR
-  Serial.println("webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)");
+  Serial.println(F("webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)"));
   printHeap();
 #endif
 }
@@ -1387,20 +1387,20 @@ File uploadFile;
 
 void handleFileUpload()
 {
-  Serial.println("handleFileUpload() START");
+  Serial.println(F("handleFileUpload() START"));
 
   String path = server.uri();
   Serial.println(String("handleFileRead: ") + path);
 
   if (!fsOK)
   {
-    Serial.println("error in opening FS");
+    Serial.println(F("error in opening FS"));
     return replyServerError(FPSTR("FS_INIT_ERROR"));
   }
 
   if (server.uri() != "/fsupload")
   {
-    Serial.println("path not ends with /fsupload");
+    Serial.println(F("path not ends with /fsupload"));
     return;
   }
 
@@ -1430,17 +1430,17 @@ void handleFileUpload()
   }
   else if (upload.status == UPLOAD_FILE_WRITE)
   {
-    Serial.println("upload.status == UPLOAD_FILE_WRITE");
+    Serial.println(F("upload.status == UPLOAD_FILE_WRITE"));
     if (uploadFile)
     {
       size_t bytesWritten = uploadFile.write(upload.buf, upload.currentSize);
 
-      Serial.print("bytesWritten>>");
+      Serial.print(F("bytesWritten>>"));
       Serial.println(bytesWritten);
 
       if (bytesWritten != upload.currentSize)
       {
-        Serial.println("WRITE FAILED !!!");
+        Serial.println(F("WRITE FAILED !!!"));
         return replyServerError(F("WRITE FAILED"));
       }
     }
@@ -1451,11 +1451,11 @@ void handleFileUpload()
     if (uploadFile)
     {
       uploadFile.close();
-      Serial.println("uploadFile.close(); PROPERLY");
+      Serial.println(F("uploadFile.close(); PROPERLY"));
     }
     Serial.println(String("Upload: END/COMPLETED, Size: ") + upload.totalSize);
   }
-  Serial.println("handleFileUpload() END");
+  Serial.println(F("handleFileUpload() END"));
 }
 
 /*
@@ -1464,7 +1464,7 @@ void handleFileUpload()
 // void handleFileRead(String path)
 void handleFileRead()
 {
-  Serial.println("handleFileRead() START");
+  Serial.println(F("handleFileRead() START"));
 
   String path = server.uri();
   Serial.println(path);
@@ -1509,10 +1509,10 @@ void handleFileRead()
     File file = fileSystem->open(filename, "r");
     if (server.streamFile(file, contentType) != file.size())
     {
-      Serial.println("Sent less data than expected!");
+      Serial.println(F("Sent less data than expected!"));
     }
     file.close();
-    Serial.println(" file.close();");
+    Serial.println(F(" file.close();"));
 
     // return true;
     return;
@@ -1520,12 +1520,12 @@ void handleFileRead()
   // return false;
   replyOKWithMsg("Something is wrong");
 
-  Serial.println("handleFileRead() END");
+  Serial.println(F("handleFileRead() END"));
 }
 
 void handleNotFound()
 {
-  Serial.println("handleNotFound()");
+  Serial.println(F("handleNotFound()"));
 
   String uri = ESP8266WebServer::urlDecode(server.uri()); // required to read paths with blanks
 
@@ -1559,7 +1559,7 @@ void handleNotFound()
 void websocket_server_mdns_setup()
 {
 #ifdef DEBUG_AMOR
-  Serial.println("websocket_server_mdns_setup()");
+  Serial.println(F("websocket_server_mdns_setup()"));
   printHeap();
 #endif
   if (WiFi.status() == WL_CONNECTED)
@@ -1600,13 +1600,13 @@ void websocket_server_mdns_setup()
   else
   {
 #ifdef DEBUG_AMOR
-    Serial.println("websocket_server_mdns_setup  !WL_CONNECTED");
+    Serial.println(F("websocket_server_mdns_setup  !WL_CONNECTED"));
     printHeap();
 #endif
     restart_device();
   }
 #ifdef DEBUG_AMOR
-  Serial.println("websocket_server_mdns_setup() done");
+  Serial.println(F("websocket_server_mdns_setup() done"));
   printHeap();
 #endif
 }
@@ -1641,7 +1641,7 @@ vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep
 void download_file_to_fs()
 {
 #ifdef DEBUG_AMOR
-  Serial.print("firmware_update_from_fs()");
+  Serial.print(F("firmware_update_from_fs()"));
   printHeap();
 #endif
 
@@ -1654,7 +1654,7 @@ void download_file_to_fs()
   server.~ESP8266WebServerTemplate();
   webSocket.~WebSocketsServer();
 
-  Serial.println("~PubSubClient");
+  Serial.println(F("~PubSubClient"));
 
   printHeap();
 
@@ -1681,17 +1681,17 @@ void download_file_to_fs()
   }
 
 #ifdef DEBUG_AMOR
-  Serial.print("host_ca >");
+  Serial.print(F("host_ca >"));
   Serial.println(host_ca);
-  Serial.print("host >");
+  Serial.print(F("host >"));
   Serial.println(host);
-  Serial.print("httpsPort >");
+  Serial.print(F("httpsPort >"));
   Serial.println(httpsPort);
-  Serial.print("d2fs_url_file >");
+  Serial.print(F("d2fs_url_file >"));
   Serial.println(d2fs_url_file);
-  Serial.print("d2fs_finished_flag >");
+  Serial.print(F("d2fs_finished_flag >"));
   Serial.println(d2fs_finished_flag);
-  Serial.print("filename >");
+  Serial.print(F("filename >"));
   Serial.println(filename);
   printHeap();
 #endif
@@ -1703,7 +1703,7 @@ void download_file_to_fs()
       filename.length() < 2 ||
       FirmwareVer.length() < 2)
   {
-    Serial.println("Something is null");
+    Serial.println(F("Something is null"));
     return;
   }
 
@@ -1714,7 +1714,7 @@ void download_file_to_fs()
   }
 
 #ifdef DEBUG_AMOR
-  Serial.print("host_ca > = ");
+  Serial.print(F("host_ca > = "));
   Serial.println(host_ca);
 
   printHeap();
@@ -1724,14 +1724,14 @@ void download_file_to_fs()
   if (!ota_ca_file)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Failed to open host_ca cert file");
+    Serial.println(F("Failed to open host_ca cert file"));
     printHeap();
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Success to open host_ca cert file");
+    Serial.println(F("Success to open host_ca cert file"));
     printHeap();
 #endif
   }
@@ -1741,14 +1741,14 @@ void download_file_to_fs()
   if (espClient.loadCACert(ota_ca_file))
   {
 #ifdef DEBUG_AMOR
-    Serial.println("host_ca cert loaded");
+    Serial.println(F("host_ca cert loaded"));
     printHeap();
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
-    Serial.println("host_ca cert not loaded");
+    Serial.println(F("host_ca cert not loaded"));
     printHeap();
 #endif
   }
@@ -1756,7 +1756,7 @@ void download_file_to_fs()
   ota_ca_file.close();
 
 #ifdef DEBUG_AMOR
-  Serial.println("ota_ca_file.close();");
+  Serial.println(F("ota_ca_file.close();"));
   printHeap();
 #endif
 
@@ -1774,7 +1774,7 @@ void download_file_to_fs()
   {
 
 #ifdef DEBUG_AMOR
-    Serial.println("Connection to host failed");
+    Serial.println(F("Connection to host failed"));
     printHeap();
 #endif
 
@@ -1805,7 +1805,7 @@ void download_file_to_fs()
   //     if (line == "\r")
   //     {
   // #ifdef DEBUG_AMOR
-  //       Serial.println("Headers received");
+  //       Serial.println(F("Headers received"));
   //       printHeap();
   // #endif
   //       break;
@@ -1817,9 +1817,9 @@ void download_file_to_fs()
   //     String x = buf;
   //     Serial.println(x);
 
-  //     // Serial.println("+++++++Started++++++++");
+  //     // Serial.println(F("+++++++Started++++++++"));
   //     // Serial.print(String(buf));
-  //     // Serial.println("+++++++END++++++++");
+  //     // Serial.println(F("+++++++END++++++++"));
   //   }
 
   //   espClient.status();
@@ -1833,12 +1833,12 @@ void download_file_to_fs()
   while (espClient.connected())
   {
     String header = espClient.readStringUntil('\n');
-    Serial.print("h...");
+    Serial.print(F("h..."));
     Serial.println(header);
     if (header.startsWith(F("HTTP/1.")))
     {
       httpCode = header.substring(9, 12).toInt();
-      Serial.print("httpCode ..>>");
+      Serial.print(F("httpCode ..>>"));
       Serial.println(httpCode);
 
       if (httpCode != 200)
@@ -1852,7 +1852,7 @@ void download_file_to_fs()
     if (header.startsWith(F("Content-Length: ")))
     {
       contentLength = header.substring(15).toInt();
-      Serial.print("contentLength ..>>");
+      Serial.print(F("contentLength ..>>"));
       Serial.println(contentLength);
     }
     if (header == F("\r"))
@@ -1929,12 +1929,12 @@ void download_file_to_fs()
   else
   {
     updatetoConfigJSON("d2fs_finished_flag", "0");
-    Serial.println("--1");
+    Serial.println(F("--1"));
   }
   // return;
 
 #ifdef DEBUG_AMOR
-  Serial.println("void firmware_update_from_fs(String &ota_filename); END");
+  Serial.println(F("void firmware_update_from_fs(String &ota_filename); END"));
   printHeap();
 #endif
 
@@ -1945,7 +1945,7 @@ void firmware_update_from_config()
 {
 
 #ifdef DEBUG_AMOR
-  Serial.println("firmware_update_from_config START");
+  Serial.println(F("firmware_update_from_config START"));
   printHeap();
 #endif
 
@@ -1959,7 +1959,7 @@ void firmware_update_from_config()
   server.~ESP8266WebServerTemplate();
   webSocket.~WebSocketsServer();
 
-  Serial.println("~PubSubClient");
+  Serial.println(F("~PubSubClient"));
 
   printHeap();
 
@@ -1986,19 +1986,19 @@ void firmware_update_from_config()
       URL_fw_Version.length() < 2 ||
       FirmwareVer.length() < 2)
   {
-    Serial.println("Something is null");
+    Serial.println(F("Something is null"));
   }
 
 #ifdef DEBUG_AMOR
-  Serial.print("host_ca >");
+  Serial.print(F("host_ca >"));
   Serial.println(host_ca);
-  Serial.print("host >");
+  Serial.print(F("host >"));
   Serial.println(host);
-  Serial.print("httpsPort >");
+  Serial.print(F("httpsPort >"));
   Serial.println(httpsPort);
-  Serial.print("URL_fw_Version >");
+  Serial.print(F("URL_fw_Version >"));
   Serial.println(URL_fw_Version);
-  Serial.print("URL_fw_Bin >");
+  Serial.print(F("URL_fw_Bin >"));
   Serial.println(URL_fw_Bin);
   printHeap();
 #endif
@@ -2010,7 +2010,7 @@ void firmware_update_from_config()
   }
 
 #ifdef DEBUG_AMOR
-  Serial.print("host_ca > = ");
+  Serial.print(F("host_ca > = "));
   Serial.println(host_ca);
 
   printHeap();
@@ -2020,14 +2020,14 @@ void firmware_update_from_config()
   if (!ota_ca_file)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Failed to open host_ca cert file");
+    Serial.println(F("Failed to open host_ca cert file"));
     printHeap();
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Success to open host_ca cert file");
+    Serial.println(F("Success to open host_ca cert file"));
     printHeap();
 #endif
   }
@@ -2037,14 +2037,14 @@ void firmware_update_from_config()
   if (espClient.loadCACert(ota_ca_file))
   {
 #ifdef DEBUG_AMOR
-    Serial.println("host_ca cert loaded");
+    Serial.println(F("host_ca cert loaded"));
     printHeap();
 #endif
   }
   else
   {
 #ifdef DEBUG_AMOR
-    Serial.println("host_ca cert not loaded");
+    Serial.println(F("host_ca cert not loaded"));
     printHeap();
 #endif
   }
@@ -2052,7 +2052,7 @@ void firmware_update_from_config()
   ota_ca_file.close();
 
 #ifdef DEBUG_AMOR
-  Serial.println("ota_ca_file.close();");
+  Serial.println(F("ota_ca_file.close();"));
   printHeap();
 #endif
 
@@ -2070,7 +2070,7 @@ void firmware_update_from_config()
   {
 
 #ifdef DEBUG_AMOR
-    Serial.println("Connection to host failed");
+    Serial.println(F("Connection to host failed"));
     printHeap();
 #endif
 
@@ -2100,7 +2100,7 @@ void firmware_update_from_config()
     {
 
 #ifdef DEBUG_AMOR
-      Serial.println("Headers received");
+      Serial.println(F("Headers received"));
       printHeap();
 #endif
       break;
@@ -2120,9 +2120,9 @@ void firmware_update_from_config()
   float gotFW = payload.toFloat();
 
 #ifdef DEBUG_AMOR
-  Serial.print("currentFW=");
+  Serial.print(F("currentFW="));
   Serial.println(currentFW);
-  Serial.print("gotFW=");
+  Serial.print(F("gotFW="));
   Serial.println(gotFW);
   printHeap();
 #endif
@@ -2133,7 +2133,7 @@ void firmware_update_from_config()
 #ifdef DEBUG_AMOR
     printHeap();
 #endif
-    Serial.println("New firmware detected");
+    Serial.println(F("New firmware detected"));
 
     ESPhttpUpdate.setLedPin(LED_BUILTIN, LOW);
 
@@ -2154,11 +2154,11 @@ void firmware_update_from_config()
       break;
 
     case HTTP_UPDATE_NO_UPDATES:
-      Serial.println("HTTP_UPDATE_NO_UPDATES");
+      Serial.println(F("HTTP_UPDATE_NO_UPDATES"));
       break;
 
     case HTTP_UPDATE_OK:
-      Serial.println("HTTP_UPDATE_OK");
+      Serial.println(F("HTTP_UPDATE_OK"));
       break;
     }
   }
@@ -2166,17 +2166,17 @@ void firmware_update_from_config()
   {
     if (currentFW == gotFW)
     {
-      Serial.println("Device already on latest firmware version");
+      Serial.println(F("Device already on latest firmware version"));
     }
     else
     {
-      Serial.println("Device already on latest firmware version got FW is old");
+      Serial.println(F("Device already on latest firmware version got FW is old"));
     }
   }
 
   // if(payload.equals(FirmwareVer))
   // {
-  //   Serial.println("Device already on latest firmware version");
+  //   Serial.println(F("Device already on latest firmware version"));
   // }
   // else
   // {
@@ -2191,7 +2191,7 @@ void setupUNIXTime()
   timeClient.begin();
 
 #ifdef DEBUG_AMOR
-  Serial.println("setupUNIXTime");
+  Serial.println(F("setupUNIXTime"));
 #endif
 }
 
@@ -2200,7 +2200,7 @@ void setupUNIXTime()
 String gethotspotname()
 {
 #ifdef DEBUG_AMOR
-  Serial.print("Wifi macAddress> "); // eg A4:CF:12:C7:E6:AA
+  Serial.print(F("Wifi macAddress> ")); // eg A4:CF:12:C7:E6:AA
 #endif
 
   String mac_add = WiFi.macAddress();
@@ -2224,7 +2224,7 @@ String gethotspotname()
   hotspotname.concat(mac_add.substring(6, 12));
 
 #ifdef DEBUG_AMOR
-  Serial.print("hotspotname> "); // esp8266_C7E6AA
+  Serial.print(F("hotspotname> ")); // esp8266_C7E6AA
   Serial.println(hotspotname);
 #endif
 
@@ -2235,7 +2235,7 @@ String gethotspotname()
 void configModeCallback(WiFiManager *myWiFiManager)
 {
 #ifdef DEBUG_AMOR
-  Serial.println("Entered config mode");
+  Serial.println(F("Entered config mode"));
 #endif
   IPAddress my_softAPIP = WiFi.softAPIP();
 #ifdef DEBUG_AMOR
@@ -2259,7 +2259,7 @@ void tickWifiManagerLed()
 
   digitalWrite(wifiManagerLED, !digitalRead(wifiManagerLED));
 #ifdef DEBUG_AMOR
-  Serial.println(" ...");
+  Serial.println(F(" ..."));
 #endif
 }
 
@@ -2268,7 +2268,7 @@ void wifiManagerSetup()
 {
 #ifdef DEBUG_AMOR
   printHeap();
-  Serial.print("WiFi.hostname(); = ");
+  Serial.print(F("WiFi.hostname(); = "));
   Serial.println(WiFi.hostname());
 #endif
 
@@ -2312,9 +2312,9 @@ void wifiManagerSetup()
 
 #ifdef DEBUG_AMOR
   printHeap();
-  Serial.print("saved SSIS PSK = ");
+  Serial.print(F("saved SSIS PSK = "));
   Serial.print(WiFi.SSID());
-  Serial.print(" ");
+  Serial.print(F(" "));
   Serial.println(WiFi.psk());
 #endif
 
@@ -2323,7 +2323,7 @@ void wifiManagerSetup()
   {
 #ifdef DEBUG_AMOR
     printHeap();
-    Serial.println("failed to connect and hit timeout");
+    Serial.println(F("failed to connect and hit timeout"));
 #endif
     //reset and try again, or maybe put it to deep sleep
     delay(1000);
@@ -2334,7 +2334,7 @@ void wifiManagerSetup()
 //if you get here you have connected to the WiFi
 #ifdef DEBUG_AMOR
   printHeap();
-  Serial.println("connected...yeey :)");
+  Serial.println(F("connected...yeey :)"));
 #endif
   // printWifiInfo();
 
@@ -2351,7 +2351,7 @@ void wifiManagerSetup()
   // digitalWrite(wifiManagerLED, HIGH); // TODO: figure out
 
 #ifdef DEBUG_AMOR
-  // Serial.println("connected...yeey  HIGH");
+  // Serial.println(F("connected...yeey  HIGH"));
   printHeap();
 #endif
 
@@ -2410,7 +2410,7 @@ void setup_ISRs()
 void printHeap()
 {
 #ifdef DEBUG_AMOR
-  Serial.print("Free Heap>");
+  Serial.print(F("Free Heap>"));
   Serial.println(ESP.getFreeHeap());
 #endif
 }
@@ -2420,7 +2420,7 @@ void listAndReadFiles()
 {
 
 #ifdef DEBUG_AMOR
-  Serial.print("Free Flash>");
+  Serial.print(F("Free Flash>"));
   Serial.println(ESP.getFreeSketchSpace());
 #endif
 
@@ -2436,7 +2436,7 @@ void listAndReadFiles()
 
     if (dir.fileName().startsWith("my"))
     {
-      Serial.println("===got my file");
+      Serial.println(F("===got my file"));
       File f = dir.openFile("r");
       // Serial.println(f.readString());
       while (f.available())
@@ -2450,7 +2450,7 @@ void listAndReadFiles()
       // // Serial.println(f.readString());
       // if (!f2)
       // {
-      //   Serial.println("Failed to open /stats.txt");
+      //   Serial.println(F("Failed to open /stats.txt"));
       //   return;
       // }
       // f2.println(timeClient.getEpochTime());
@@ -2458,13 +2458,13 @@ void listAndReadFiles()
       // f2.println(ESP.getResetInfo());
       // f2.println("");
       // f2.close();
-      // Serial.println("LOGS UPDATED");
+      // Serial.println(F("LOGS UPDATED"));
     }
   }
   Serial.print(str);
   // fileSystem->end();
 #ifdef DEBUG_AMOR
-  Serial.print("Free Flash>");
+  Serial.print(F("Free Flash>"));
   Serial.println(ESP.getFreeSketchSpace());
 #endif
 }
@@ -2489,9 +2489,9 @@ void setup()
 {
 #ifdef DEBUG_AMOR
   Serial.begin(115200);
-  Serial.println("==DEBUGGING ENABLED==");
+  Serial.println(F("==DEBUGGING ENABLED=="));
   printHeap();
-  Serial.println("fileSystem->begin(); START");
+  Serial.println(F("fileSystem->begin(); START"));
 #endif
 
   fileSystemConfig.setAutoFormat(false);
@@ -2503,7 +2503,7 @@ void setup()
 #ifdef DEBUG_AMOR
 
     printHeap();
-    Serial.println("Failed to mount file system");
+    Serial.println(F("Failed to mount file system"));
 #endif
     fileSystem->begin();
   }
@@ -2512,23 +2512,23 @@ void setup()
   Serial.println(fsOK ? F("Filesystem initialized.") : F("Filesystem init failed!"));
 
   printHeap();
-  Serial.println("setup_config_vars START");
+  Serial.println(F("setup_config_vars START"));
 #endif
 
   setup_config_vars();
 
 #ifdef DEBUG_AMOR
-  Serial.println("setup_config_vars END");
+  Serial.println(F("setup_config_vars END"));
   printHeap();
-  Serial.println("listAndReadFiles START");
+  Serial.println(F("listAndReadFiles START"));
 #endif
 
   listAndReadFiles(); // TODO: conmment related code in production.
 
 #ifdef DEBUG_AMOR
-  Serial.println("listAndReadFiles END");
+  Serial.println(F("listAndReadFiles END"));
   printHeap();
-  Serial.println("readAwsCerts START");
+  Serial.println(F("readAwsCerts START"));
 #endif
 
   readAwsCerts();
@@ -2536,9 +2536,9 @@ void setup()
   // fileSystem->end();
 
 #ifdef DEBUG_AMOR
-  Serial.println("readAwsCerts END ,  fileSystem->end();");
+  Serial.println(F("readAwsCerts END ,  fileSystem->end();"));
   printHeap();
-  Serial.println("setup_ISRs,setup_RGB_leds, wifiManagerSetup START");
+  Serial.println(F("setup_ISRs,setup_RGB_leds, wifiManagerSetup START"));
 #endif
 
   setup_ISRs();
@@ -2552,33 +2552,33 @@ void setup()
   digitalWrite(wifiManagerLED, HIGH); // turning off the led after wifi connection
 
 #ifdef DEBUG_AMOR
-  Serial.println("setup_ISRs,setup_RGB_leds, wifiManagerSetup END");
+  Serial.println(F("setup_ISRs,setup_RGB_leds, wifiManagerSetup END"));
   printHeap();
-  Serial.println("void Setup end");
+  Serial.println(F("void Setup end"));
 #endif
 
 #ifdef DEBUG_AMOR
-  Serial.println("setup_ISRs,setup_RGB_leds, wifiManagerSetup END");
+  Serial.println(F("setup_ISRs,setup_RGB_leds, wifiManagerSetup END"));
   printHeap();
-  Serial.println("setupUNIXTime START");
+  Serial.println(F("setupUNIXTime START"));
 #endif
 
   setupUNIXTime();
 
 #ifdef DEBUG_AMOR
-  Serial.println("setupUNIXTime END");
+  Serial.println(F("setupUNIXTime END"));
   printHeap();
-  Serial.println("amorWebsocket_setup START");
+  Serial.println(F("amorWebsocket_setup START"));
 #endif
 
   websocket_server_mdns_setup();
 
 #ifdef DEBUG_AMOR
-  Serial.println("amorWebsocket_setup END");
+  Serial.println(F("amorWebsocket_setup END"));
   printHeap();
-  Serial.println("setup_mDNS START");
+  Serial.println(F("setup_mDNS START"));
 
-  Serial.println("getBufferSize END");
+  Serial.println(F("getBufferSize END"));
   Serial.println(clientPubSub.getBufferSize());
 #endif
 
@@ -2586,12 +2586,12 @@ void setup()
   // setup_mDNS(); already done above
 
 #ifdef DEBUG_AMOR
-  Serial.println("getBufferSize END");
+  Serial.println(F("getBufferSize END"));
   Serial.println(clientPubSub.getBufferSize());
 
-  Serial.println("setup_mDNS END");
+  Serial.println(F("setup_mDNS END"));
   printHeap();
-  Serial.println("setup_mDNS START");
+  Serial.println(F("setup_mDNS START"));
 #endif
 }
 
@@ -2600,7 +2600,7 @@ void myIRS1_method()
 {
 
 #ifdef DEBUG_AMOR
-  Serial.println("==myIRS1_method called==");
+  Serial.println(F("==myIRS1_method called=="));
   printHeap();
 #endif
 
@@ -2623,7 +2623,7 @@ void myIRS1_method()
   // send_touch_toGroup();
 
   // #ifdef DEBUG_AMOR
-  //   Serial.println("groupId>");
+  //   Serial.println(F("groupId>"));
   //   Serial.println(readFromConfigJSON("groupId"));
   //   Serial.println(readFromConfigJSON("toSendHSL"));
   //   Serial.println(readFromConfigJSON("myrgbHSL"));
@@ -2663,7 +2663,7 @@ void disable_touch_for_x_ms(uint16_t x)
 {
   lastValidInterruptTime_2 = millis() + (unsigned long)x;
 #ifdef DEBUG_AMOR
-  Serial.print("disable_touch_for_x_ms > ");
+  Serial.print(F("disable_touch_for_x_ms > "));
   Serial.println(x);
 #endif
 }
@@ -2672,7 +2672,7 @@ void disable_touch_for_x_ms(uint16_t x)
 void myIRS2_method()
 {
 #ifdef DEBUG_AMOR
-  Serial.println("==myIRS2_method called==");
+  Serial.println(F("==myIRS2_method called=="));
   printHeap();
 #endif
 
@@ -2689,7 +2689,7 @@ void myIRS2_method()
   //     {
   //       rgb_led_task_queue.flush();
   // #ifdef DEBUG_AMOR
-  //       Serial.println("==rgb_led_task_queue.flush(); 30 sec mai 30 se jyada touch==");
+  //       Serial.println(F("==rgb_led_task_queue.flush(); 30 sec mai 30 se jyada touch=="));
   //       Serial.println(rgb_led_task_queue.getCount());
   //       Serial.println(rgb_led_task_queue.getRemainingCount());
   // #endif
@@ -2699,7 +2699,7 @@ void myIRS2_method()
   //     {
   //       myISR2_flag_counter_cooldown = 0;
   // #ifdef DEBUG_AMOR
-  //       Serial.println("==rmyISR2_flag_counter_cooldown= 0 RESET==");
+  //       Serial.println(F("==rmyISR2_flag_counter_cooldown= 0 RESET=="));
   //       Serial.println(rgb_led_task_queue.getCount());
   //       Serial.println(rgb_led_task_queue.getRemainingCount());
   // #endif
@@ -2707,7 +2707,7 @@ void myIRS2_method()
   //   }
 
   // #ifdef DEBUG_AMOR
-  //   Serial.println("==myIRS2_method called==");
+  //   Serial.println(F("==myIRS2_method called=="));
   //   Serial.println(myISR2_flag_counter);
   //   Serial.println(myISR2_flag_counter_cooldown);
   // #endif
@@ -2719,7 +2719,7 @@ void myIRS2_method()
 void restart_device()
 {
 #ifdef DEBUG_AMOR
-  Serial.println(" !!! RESTARTING ESP !!!");
+  Serial.println(F(" !!! RESTARTING ESP !!!"));
 #endif
   leds[NUM_LEDS - 1] = CRGB::Red;
   FastLED.show();
@@ -2738,7 +2738,7 @@ void forget_saved_wifi_creds()
   wifiManager.resetSettings();
 
 #ifdef DEBUG_AMOR
-  Serial.println(" !!! FORGOT Wifi Id pass :(  !!!");
+  Serial.println(F(" !!! FORGOT Wifi Id pass :(  !!!"));
   Serial.println(ESP.getFreeHeap());
 #endif
 
@@ -2767,9 +2767,9 @@ void rgb_led_task_queue_CheckLoop()
       disable_touch_for_x_ms(200);
 
 #ifdef DEBUG_AMOR
-      Serial.println("length count");
+      Serial.println(F("length count"));
       Serial.println(rgb_led_task_queue.getCount());
-      Serial.println("popping up a task:!");
+      Serial.println(F("popping up a task:!"));
       Serial.println(temp.argument1);
 
 #endif
@@ -2859,25 +2859,25 @@ void reconnect_aws()
 #ifdef DEBUG_AMOR
       // Serial.print(clientPubSub_connected_counter);
       printHeap();
-      Serial.print("Attempting MQTT connection...");
+      Serial.print(F("Attempting MQTT connection..."));
       // Serial.print(MQTT_MAX_PACKET_SIZE);
 #endif
       // Attempt to connect
       if (clientPubSub.connect(deviceId.c_str()))
       { // update with your own thingName $aws/things/myEspTestWork/shadow/update
 #ifdef DEBUG_AMOR
-        Serial.println("connected");
+        Serial.println(F("connected"));
         printHeap();
-        // Serial.println("espClient.flush();");
+        // Serial.println(F("espClient.flush();"));
         // espClient.flush();
         // printHeap();
-        // Serial.println("espClient.disableKeepAlive();");
+        // Serial.println(F("espClient.disableKeepAlive();"));
         // espClient.disableKeepAlive();
         // printHeap();
-        // Serial.println("espClient.stop();");
+        // Serial.println(F("espClient.stop();"));
         // espClient.stop();
         // printHeap();
-        // Serial.println("espClient.stopAll();");
+        // Serial.println(F("espClient.stopAll();"));
         // espClient.stopAll();
         // printHeap();
 
@@ -2887,44 +2887,44 @@ void reconnect_aws()
         // ... and resubscribe
         clientPubSub.subscribe("inTopic");
 
-        Serial.println("subscribeDeviceShadow START");
+        Serial.println(F("subscribeDeviceShadow START"));
 #endif
 
         // subscribeDeviceShadow();
 
 #ifdef DEBUG_AMOR
-        Serial.println("subscribeDeviceShadow END");
+        Serial.println(F("subscribeDeviceShadow END"));
         printHeap();
-        Serial.println("setup_config_vars START");
+        Serial.println(F("setup_config_vars START"));
 #endif
 
         setup_config_vars();
 
 #ifdef DEBUG_AMOR
-        Serial.println("setup_config_vars END");
+        Serial.println(F("setup_config_vars END"));
         printHeap();
-        Serial.println("publish_boot_data START");
+        Serial.println(F("publish_boot_data START"));
 #endif
 
         publish_boot_data();
 
 #ifdef DEBUG_AMOR
-        Serial.println("publish_boot_data END");
+        Serial.println(F("publish_boot_data END"));
         printHeap();
-        Serial.println("subscribeDeviceTopics START");
+        Serial.println(F("subscribeDeviceTopics START"));
 #endif
 
         subscribeDeviceTopics();
 
 #ifdef DEBUG_AMOR
-        Serial.println("subscribeDeviceShadow END");
+        Serial.println(F("subscribeDeviceShadow END"));
         printHeap();
-        Serial.println("subscribeDeviceShadow START");
+        Serial.println(F("subscribeDeviceShadow START"));
 #endif
 
 #ifdef DEBUG_AMOR
         printHeap();
-        Serial.println("client.subscribe  OK !!!");
+        Serial.println(F("client.subscribe  OK !!!"));
 #endif
 
         leds[NUM_LEDS - 1] = CRGB::Green;
@@ -2948,13 +2948,13 @@ void reconnect_aws()
 
 #ifdef DEBUG_AMOR
         printHeap();
-        Serial.print("failed, rc=");
+        Serial.print(F("failed, rc="));
         Serial.print(clientPubSub.state());
-        Serial.println(" try again in 5 seconds");
+        Serial.println(F(" try again in 5 seconds"));
         char buf[256];
         espClient.getLastSSLError(buf, 256);
         printHeap();
-        Serial.print("WiFiClientSecure SSL error: ");
+        Serial.print(F("WiFiClientSecure SSL error: "));
         Serial.println(buf);
 #endif
       }
@@ -3024,7 +3024,7 @@ void setupUNIXTimeLoop()
     timeClient_counter_lastvalid_millis = millis();
 
     // #ifdef DEBUG_AMOR
-    //     Serial.println("---- 5 sec time update ----");
+    //     Serial.println(F("---- 5 sec time update ----"));
     //     Serial.println(timeClient.getEpochTime());
     //     Serial.println(timeClient.getFormattedTime());
     // #endif
@@ -3035,7 +3035,7 @@ void setupUNIXTimeLoop()
       espClient.setX509Time(timeClient.getEpochTime());
 
 #ifdef DEBUG_AMOR
-      Serial.println("espClient.setX509Time(timeClient.getEpochTime());");
+      Serial.println(F("espClient.setX509Time(timeClient.getEpochTime());"));
       Serial.println(timeClient.getEpochTime());
       Serial.println(timeClient.getFormattedTime());
 #endif
