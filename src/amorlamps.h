@@ -63,7 +63,7 @@ void setupUNIXTime();
 
 void firmware_update_from_config();
 void download_file_to_fs();
-void firmware_update_from_fs(String &ota_filename);
+void firmware_update_from_fs(String ota_filename);
 
 void websocket_server_mdns_setup();
 
@@ -71,7 +71,8 @@ void readAwsCerts();
 void publish_boot_data();
 void subscribeDeviceTopics();
 
-void listAndReadFiles();
+void listAndReadFiles(); //TODO: not for production
+String get_ESP_core(String key) ;
 
 
 // Other methods

@@ -801,7 +801,14 @@ void rpc_method_handler(byte *payload, unsigned int length)
   }
   else if (doc["method"] == "turn_on_disco_mode_for_x_mins")
   {
-    turn_on_disco_mode_for_x_mins((int)doc["x"]);
+    if (doc.containsKey("x"))
+    {
+      turn_on_disco_mode_for_x_mins((int)doc["x"]);
+    }
+    else
+    {
+      turn_on_disco_mode_for_x_mins(x_min_on_value);
+    }
   }
   else if (doc["method"] == "send_responseToAWS")
   {
@@ -823,23 +830,41 @@ void rpc_method_handler(byte *payload, unsigned int length)
   {
     update_groupId(doc["gID"]);
   }
-  // else if (doc["method"] == "readFromConfigJSON")
-  // {
-  //   send_responseToAWS(readFromConfigJSON(doc["key"]));
-  // }
-  // else if (doc["method"] == "updatetoConfigJSON")
-  // {
-  //   bool ok = updatetoConfigJSON(doc["key"], doc["value"]);
-  //   send_responseToAWS(String(ok));
-  // }
+  else if (doc["method"] == "readFromConfigJSON")
+  {
+    send_responseToAWS(readFromConfigJSON(doc["key"]));
+  }
+  else if (doc["method"] == "updatetoConfigJSON")
+  {
+    bool ok = updatetoConfigJSON(doc["key"], doc["value"]);
+    send_responseToAWS(String(ok));
+  }
+  else if (doc["method"] == "removeFromConfigJSON")
+  {
+    bool ok = removeFromConfigJSON(doc["key"]);
+    send_responseToAWS(String(ok));
+  }
+   else if (doc["method"] == "get_ESP_core")
+  {
+    String s = get_ESP_core(doc["key"]);
+    send_responseToAWS(doc["key"]+" "+s);
+  }
   else if (doc["method"] == "restart_device")
   {
     restart_device();
   }
-  // else if (doc["method"] == "FirmwareUpdate")
-  // {
-  //   FirmwareUpdate();
-  // }
+  else if (doc["method"] == "firmware_update_from_config")
+  {
+    firmware_update_from_config();
+  }
+  else if (doc["method"] == "firmware_update_from_fs")
+  {
+    firmware_update_from_fs(doc["ota_filename"]);
+  }
+  else if (doc["method"] == "download_file_to_fs")
+  {
+    download_file_to_fs();
+  }
   else
   {
 #ifdef DEBUG_AMOR
@@ -890,7 +915,7 @@ void send_given_msg_to_given_topic(String topic, String msg)
   {
     Serial.println(F("send_given_msg_to_given_topic sent failed!"));
   }
-printHeap();
+  printHeap();
 #endif
 }
 
@@ -1159,7 +1184,7 @@ void readAwsCerts()
 #endif
 }
 
-bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename ,bool isToDelete)
+bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename, bool isToDelete)
 {
 
   File configFile;
@@ -1238,14 +1263,18 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename 
 #endif
     return false;
   }
-  if(isToDelete){
-      if(doc.containsKey(key.c_str())){doc.remove(key.c_str());}
-      isToDeleteupdatetoConfigJSONflag = false;
-  }else{
-      doc[key.c_str()] = value;
+  if (isToDelete)
+  {
+    if (doc.containsKey(key.c_str()))
+    {
+      doc.remove(key.c_str());
+    }
+    isToDeleteupdatetoConfigJSONflag = false;
   }
-
-
+  else
+  {
+    doc[key.c_str()] = value;
+  }
 
 // TODO: check wheather it writes to to serial usb port or serially to flash chip
 #ifdef DEBUG_AMOR
@@ -1286,7 +1315,7 @@ bool updatetoConfigJSON(String key, String value)
       printHeap();
       Serial.println("END updatetoConfigJSON " + key + ":" + value + tempStr);
 #endif
-      return updateto_givenfile_ConfigJSON(key, value, tempStr ,isToDeleteupdatetoConfigJSONflag);
+      return updateto_givenfile_ConfigJSON(key, value, tempStr, isToDeleteupdatetoConfigJSONflag);
       //break;
     }
   }
@@ -1296,7 +1325,7 @@ bool updatetoConfigJSON(String key, String value)
   printHeap();
   Serial.println("END updatetoConfigJSON" + key + ":" + value + tempStr);
 #endif
-  return updateto_givenfile_ConfigJSON(key, value, tempStr ,isToDeleteupdatetoConfigJSONflag);
+  return updateto_givenfile_ConfigJSON(key, value, tempStr, isToDeleteupdatetoConfigJSONflag);
 
   // in future will write to any one of 789 only , on basis of size;
 
@@ -1308,7 +1337,7 @@ bool updatetoConfigJSON(String key, String value)
 bool removeFromConfigJSON(String key)
 {
   isToDeleteupdatetoConfigJSONflag = true;
-  updatetoConfigJSON(key,"");
+  updatetoConfigJSON(key, "");
   isToDeleteupdatetoConfigJSONflag = false;
 }
 
@@ -1457,9 +1486,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 #endif
   if (type == WStype_TEXT)
   {
-    rpc_method_handler(payload,length);
+    rpc_method_handler(payload, length);
   }
-
 }
 
 void replyOK()
@@ -1481,8 +1509,6 @@ void replyServerError(String msg)
 /*
    Handle a file upload request
 */
-
-
 
 void handleFileUpload()
 {
@@ -1654,7 +1680,6 @@ void handleNotFound()
   Serial.println(message);
   server.send(404, "text/plain", message);
 }
-
 
 // TODO: setup mdns
 void websocket_server_mdns_setup()
@@ -2043,7 +2068,8 @@ void download_file_to_fs()
   restart_device();
 }
 
-void firmware_update_from_fs(String &ota_filename){
+void firmware_update_from_fs(String ota_filename)
+{
   // TODO: to be implemented
 }
 
@@ -2573,6 +2599,83 @@ void listAndReadFiles()
   Serial.print(F("Free Flash>"));
   Serial.println(ESP.getFreeSketchSpace());
 #endif
+}
+
+String get_ESP_core(String key)
+{
+
+  String returnMsg;
+  if (key == "getFreeHeap")
+  {
+    returnMsg = ESP.getFreeHeap();
+  }
+  else if (key == "getFlashChipSize")
+  {
+    returnMsg = ESP.getFlashChipSize();
+  }
+  else if (key == "getFreeContStack")
+  {
+    returnMsg = ESP.getFreeContStack();
+  }
+  else if (key == "getFreeSketchSpace")
+  {
+    returnMsg = ESP.getFreeSketchSpace();
+  }
+  else if (key == "getHeapFragmentation")
+  {
+    returnMsg = ESP.getHeapFragmentation();
+  }
+  else if (key == "getMaxFreeBlockSize")
+  {
+    returnMsg = ESP.getMaxFreeBlockSize();
+  }
+  else if (key == "getResetInfo")
+  {
+    returnMsg = ESP.getResetInfo();
+  }
+  else if (key == "getResetReason")
+  {
+    returnMsg = ESP.getResetReason();
+  }
+  else if (key == "getSketchSize")
+  {
+    returnMsg = ESP.getSketchSize();
+  }
+  else if (key == "BSSIDstr")
+  {
+    returnMsg = WiFi.BSSIDstr();
+  }
+  else if (key == "hostname")
+  {
+    returnMsg = WiFi.hostname();
+  }
+  else if (key == "localIP")
+  { 
+    
+    returnMsg = WiFi.localIP().toString() ;
+  }
+  else if (key == "macAddress")
+  {
+    returnMsg = WiFi.macAddress();
+  }
+  else if (key == "SSID")
+  {
+    returnMsg = WiFi.SSID();
+  }
+   else if (key == "psk")
+  {
+    returnMsg = WiFi.psk();
+  }
+  else if (key == "subnetMask")
+  {
+    returnMsg = WiFi.subnetMask().toString();
+  }
+  else
+  {
+    returnMsg = ESP.getFreeHeap();
+  }
+
+  return returnMsg;
 }
 
 void setup_config_vars()
