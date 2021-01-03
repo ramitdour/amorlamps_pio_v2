@@ -52,6 +52,9 @@ LittleFSConfig fileSystemConfig = LittleFSConfig();
 
 static bool fsOK;
 
+//used in removeFromConfigJSON
+bool isToDeleteupdatetoConfigJSONflag = false;
+
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.0"};
 
@@ -95,7 +98,7 @@ int turn_on_RGB_led_for_x_mins_counter = 0;
 float turn_on_RGB_led_for_x_mins_intensity_delta = 0;
 int x_min_on_value = 20;
 
-bool isToSend_flag = false;
+bool isToSend_flag = false; // isToSend_flag tells which color to fade in out , incomming or outgoing
 int fade_in_out_RGB_x_times_counter = 0;
 uint16_t fade_in_out_RGB_x_times_temp_intensity = 0;
 uint16_t fade_in_out_RGB_x_times_temp_intensity_HOLD = 0;
@@ -197,6 +200,7 @@ PubSubClient clientPubSub(AWS_endpoint, 8883, aws_callback, espClient); //set MQ
 // WebSocketsServer
 ESP8266WebServer server;
 WebSocketsServer webSocket = WebSocketsServer(81);
+File uploadFile;
 
 char webpage[] PROGMEM = R"=====( hello world webpage!!! )=====";
 
@@ -866,6 +870,30 @@ void rpc_method_handler(byte *payload, unsigned int length)
 // #endif
 // }
 
+void send_given_msg_to_given_topic(String topic, String msg)
+{
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println(F("send_given_msg_to_given_topic()"));
+  Serial.println(topic);
+  Serial.println(msg);
+#endif
+
+  bool ok = clientPubSub.publish(topic.c_str(), msg.c_str());
+
+#ifdef DEBUG_AMOR
+  if (ok)
+  {
+    Serial.println(F("send_given_msg_to_given_topic sent OK "));
+  }
+  else
+  {
+    Serial.println(F("send_given_msg_to_given_topic sent failed!"));
+  }
+printHeap();
+#endif
+}
+
 void send_responseToAWS(String responseMsg)
 {
 //when calls via rpc are made
@@ -873,9 +901,13 @@ void send_responseToAWS(String responseMsg)
 //$aws/things/esp8266_C7ED21/response
 #ifdef DEBUG_AMOR
   Serial.println(F("send_reposeToAWS"));
+  printHeap();
 #endif
   String et = String(timeClient.getEpochTime());
-  String msg = "{\"respMsg\":\"" + responseMsg + "\",\"et\":\"" + et + "\"}";
+  String msg = "{\"respMsg\":\"" + responseMsg +
+               "\",\"et\":\"" + et +
+               "\",\"deviceId\":\"" + deviceId +
+               "\"}";
 
 #ifdef DEBUG_AMOR
   Serial.println(msg);
@@ -936,19 +968,12 @@ void publish_boot_data()
   Serial.println(F("publis_boot_data()"));
   printHeap();
 #endif
-  
+
   unsigned long et = timeClient.getEpochTime();
 
-  struct tm *ptm = gmtime ((time_t *)&et); 
+  struct tm *ptm = gmtime((time_t *)&et);
 
-  String msg = "{\"deviceId\":\"" + deviceId 
-  + "\",\"groupId\":\"" + groupId 
-  + "\",\"et\":\"" + et
-  + "\",\"time\":\"" + timeClient.getFormattedTime()
-  + "\",\"date\":\"" +  (ptm->tm_mday) +"-" + (ptm->tm_mon+1)+ "-" +  (ptm->tm_year+1900)
-  + "\",\"localIP\":\"" + WiFi.localIP().toString() 
-  + "\",\"resetInfo\":\"" + ESP.getResetInfo() 
-  + "\"}";
+  String msg = "{\"deviceId\":\"" + deviceId + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"time\":\"" + timeClient.getFormattedTime() + "\",\"date\":\"" + (ptm->tm_mday) + "-" + (ptm->tm_mon + 1) + "-" + (ptm->tm_year + 1900) + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
 
 #ifdef DEBUG_AMOR
   Serial.println(msg);
@@ -1134,7 +1159,7 @@ void readAwsCerts()
 #endif
 }
 
-bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename)
+bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename ,bool isToDelete)
 {
 
   File configFile;
@@ -1213,8 +1238,14 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename)
 #endif
     return false;
   }
+  if(isToDelete){
+      if(doc.containsKey(key.c_str())){doc.remove(key.c_str());}
+      isToDeleteupdatetoConfigJSONflag = false;
+  }else{
+      doc[key.c_str()] = value;
+  }
 
-  doc[key.c_str()] = value;
+
 
 // TODO: check wheather it writes to to serial usb port or serially to flash chip
 #ifdef DEBUG_AMOR
@@ -1255,7 +1286,7 @@ bool updatetoConfigJSON(String key, String value)
       printHeap();
       Serial.println("END updatetoConfigJSON " + key + ":" + value + tempStr);
 #endif
-      return updateto_givenfile_ConfigJSON(key, value, tempStr);
+      return updateto_givenfile_ConfigJSON(key, value, tempStr ,isToDeleteupdatetoConfigJSONflag);
       //break;
     }
   }
@@ -1265,12 +1296,20 @@ bool updatetoConfigJSON(String key, String value)
   printHeap();
   Serial.println("END updatetoConfigJSON" + key + ":" + value + tempStr);
 #endif
-  return updateto_givenfile_ConfigJSON(key, value, tempStr);
+  return updateto_givenfile_ConfigJSON(key, value, tempStr ,isToDeleteupdatetoConfigJSONflag);
 
   // in future will write to any one of 789 only , on basis of size;
 
   // key not found in any of the file
   // "ERR-KEY";
+}
+
+//deletes first occurance of key in first file
+bool removeFromConfigJSON(String key)
+{
+  isToDeleteupdatetoConfigJSONflag = true;
+  updatetoConfigJSON(key,"");
+  isToDeleteupdatetoConfigJSONflag = false;
 }
 
 String readFrom_given_ConfigJSON(String &key, String &filename)
@@ -1416,6 +1455,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   Serial.println(F("webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)"));
   printHeap();
 #endif
+  if (type == WStype_TEXT)
+  {
+    rpc_method_handler(payload,length);
+  }
+
 }
 
 void replyOK()
@@ -1438,7 +1482,7 @@ void replyServerError(String msg)
    Handle a file upload request
 */
 
-File uploadFile;
+
 
 void handleFileUpload()
 {
@@ -1611,6 +1655,8 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
+
+// TODO: setup mdns
 void websocket_server_mdns_setup()
 {
 #ifdef DEBUG_AMOR
@@ -1666,37 +1712,38 @@ void websocket_server_mdns_setup()
 #endif
 }
 
-// DigiCert High Assurance EV Root CA
-const char trustRoot[] PROGMEM = R"EOF(
------BEGIN CERTIFICATE-----
-MIIDxTCCAq2gAwIBAgIQAqxcJmoLQJuPC3nyrkYldzANBgkqhkiG9w0BAQUFADBs
-MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
-d3cuZGlnaWNlcnQuY29tMSswKQYDVQQDEyJEaWdpQ2VydCBIaWdoIEFzc3VyYW5j
-ZSBFViBSb290IENBMB4XDTA2MTExMDAwMDAwMFoXDTMxMTExMDAwMDAwMFowbDEL
-MAkGA1UEBhMCVVMxFTATBgNVBAoTDERpZ2lDZXJ0IEluYzEZMBcGA1UECxMQd3d3
-LmRpZ2ljZXJ0LmNvbTErMCkGA1UEAxMiRGlnaUNlcnQgSGlnaCBBc3N1cmFuY2Ug
-RVYgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMbM5XPm
-+9S75S0tMqbf5YE/yc0lSbZxKsPVlDRnogocsF9ppkCxxLeyj9CYpKlBWTrT3JTW
-PNt0OKRKzE0lgvdKpVMSOO7zSW1xkX5jtqumX8OkhPhPYlG++MXs2ziS4wblCJEM
-xChBVfvLWokVfnHoNb9Ncgk9vjo4UFt3MRuNs8ckRZqnrG0AFFoEt7oT61EKmEFB
-Ik5lYYeBQVCmeVyJ3hlKV9Uu5l0cUyx+mM0aBhakaHPQNAQTXKFx01p8VdteZOE3
-hzBWBOURtCmAEvF5OYiiAhF8J2a3iLd48soKqDirCmTCv2ZdlYTBoSUeh10aUAsg
-EsxBu24LUTi4S8sCAwEAAaNjMGEwDgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB/wQF
-MAMBAf8wHQYDVR0OBBYEFLE+w2kD+L9HAdSYJhoIAu9jZCvDMB8GA1UdIwQYMBaA
-FLE+w2kD+L9HAdSYJhoIAu9jZCvDMA0GCSqGSIb3DQEBBQUAA4IBAQAcGgaX3Nec
-nzyIZgYIVyHbIUf4KmeqvxgydkAQV8GK83rZEWWONfqe/EW1ntlMMUu4kehDLI6z
-eM7b41N5cdblIZQB2lWHmiRk9opmzN6cN82oNLFpmyPInngiK3BD41VHMWEZ71jF
-hS9OMPagMRYjyOfiZRYzy78aG6A9+MpeizGLYAiJLQwGXFK3xPkKmNEVX58Svnw2
-Yzi9RKR/5CYrCsSXaQ3pjOLAEFe4yHYSkVXySGnYvCoCWw9E1CAx2/S6cCZdkGCe
-vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep
-+OkuE6N36B9K
------END CERTIFICATE-----
-)EOF";
+// TODO: delete in code clean up
+// // DigiCert High Assurance EV Root CA
+// const char trustRoot[] PROGMEM = R"EOF(
+// -----BEGIN CERTIFICATE-----
+// MIIDxTCCAq2gAwIBAgIQAqxcJmoLQJuPC3nyrkYldzANBgkqhkiG9w0BAQUFADBs
+// MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+// d3cuZGlnaWNlcnQuY29tMSswKQYDVQQDEyJEaWdpQ2VydCBIaWdoIEFzc3VyYW5j
+// ZSBFViBSb290IENBMB4XDTA2MTExMDAwMDAwMFoXDTMxMTExMDAwMDAwMFowbDEL
+// MAkGA1UEBhMCVVMxFTATBgNVBAoTDERpZ2lDZXJ0IEluYzEZMBcGA1UECxMQd3d3
+// LmRpZ2ljZXJ0LmNvbTErMCkGA1UEAxMiRGlnaUNlcnQgSGlnaCBBc3N1cmFuY2Ug
+// RVYgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMbM5XPm
+// +9S75S0tMqbf5YE/yc0lSbZxKsPVlDRnogocsF9ppkCxxLeyj9CYpKlBWTrT3JTW
+// PNt0OKRKzE0lgvdKpVMSOO7zSW1xkX5jtqumX8OkhPhPYlG++MXs2ziS4wblCJEM
+// xChBVfvLWokVfnHoNb9Ncgk9vjo4UFt3MRuNs8ckRZqnrG0AFFoEt7oT61EKmEFB
+// Ik5lYYeBQVCmeVyJ3hlKV9Uu5l0cUyx+mM0aBhakaHPQNAQTXKFx01p8VdteZOE3
+// hzBWBOURtCmAEvF5OYiiAhF8J2a3iLd48soKqDirCmTCv2ZdlYTBoSUeh10aUAsg
+// EsxBu24LUTi4S8sCAwEAAaNjMGEwDgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB/wQF
+// MAMBAf8wHQYDVR0OBBYEFLE+w2kD+L9HAdSYJhoIAu9jZCvDMB8GA1UdIwQYMBaA
+// FLE+w2kD+L9HAdSYJhoIAu9jZCvDMA0GCSqGSIb3DQEBBQUAA4IBAQAcGgaX3Nec
+// nzyIZgYIVyHbIUf4KmeqvxgydkAQV8GK83rZEWWONfqe/EW1ntlMMUu4kehDLI6z
+// eM7b41N5cdblIZQB2lWHmiRk9opmzN6cN82oNLFpmyPInngiK3BD41VHMWEZ71jF
+// hS9OMPagMRYjyOfiZRYzy78aG6A9+MpeizGLYAiJLQwGXFK3xPkKmNEVX58Svnw2
+// Yzi9RKR/5CYrCsSXaQ3pjOLAEFe4yHYSkVXySGnYvCoCWw9E1CAx2/S6cCZdkGCe
+// vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep
+// +OkuE6N36B9K
+// -----END CERTIFICATE-----
+// )EOF";
 
 void download_file_to_fs()
 {
 #ifdef DEBUG_AMOR
-  Serial.print(F("firmware_update_from_fs()"));
+  Serial.print(F("download_file_to_fs()"));
   printHeap();
 #endif
 
@@ -1989,11 +2036,15 @@ void download_file_to_fs()
   // return;
 
 #ifdef DEBUG_AMOR
-  Serial.println(F("void firmware_update_from_fs(String &ota_filename); END"));
+  Serial.println(F("void download_file_to_fs; END"));
   printHeap();
 #endif
 
   restart_device();
+}
+
+void firmware_update_from_fs(String &ota_filename){
+  // TODO: to be implemented
 }
 
 void firmware_update_from_config()

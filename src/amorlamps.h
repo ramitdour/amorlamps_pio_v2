@@ -32,11 +32,11 @@ public:
 };
 
 void printHeap();
-
 // In void setup
 
-bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename);
+bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename ,bool isToDelete);
 bool updatetoConfigJSON(String key, String value);
+bool removeFromConfigJSON(String key);
 
 String readFrom_given_ConfigJSON(String &key, String &filename);
 String readFromConfigJSON(String key);
@@ -60,12 +60,15 @@ String gethotspotname();
 
 
 void setupUNIXTime();
+
 void firmware_update_from_config();
+void download_file_to_fs();
 void firmware_update_from_fs(String &ota_filename);
+
 void websocket_server_mdns_setup();
 
 void readAwsCerts();
-
+void publish_boot_data();
 void subscribeDeviceTopics();
 
 void listAndReadFiles();
@@ -80,6 +83,7 @@ void myIRS2_method();
 
 void send_touch_toGroup();
 void send_responseToAWS(String responseMsg);
+void send_given_msg_to_given_topic(String topic ,String msg );
 
 void reconnect_aws();
 void aws_callback(char *topic, byte *payload, unsigned int length);
@@ -107,25 +111,42 @@ void tick_turn_on_RGB_led_for_x_mins();
 void tick_fade_in_out_RGB_x_times();
 void tick_blink_led_x_times();
 void tick_turn_on_disco_mode_for_x_mins();
-// void tickWifiManagerLed();
+void tickWifiManagerLed();
 
 void turn_off_disco_mode();
 void turn_on_disco_mode_for_x_mins(int x);
 void set_single_RGB_color(uint8_t h, uint8_t s, uint8_t v);
 void turn_on_RGB_led_for_x_mins(int x);
-void fade_in_out_RGB_x_times(int x);
+void fade_in_out_RGB_x_times(int x, bool isToSend);
 void blink_led_x_times(int x, bool toSendHsv);
+
+void update_my_rgb_hsv(uint8_t h, uint8_t s, uint8_t v);
+void update_tosend_rgb_hsv(uint8_t h, uint8_t s, uint8_t v);
+void update_x_min_on_value(int x);
+void update_groupId(String gID);
 
 void hslS2N(String mystr, uint8_t v);
 String hslN2S(uint8_t h, uint8_t s, uint8_t l);
 
 
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
+void replyOK();
+void replyOKWithMsg(String msg);
+void replyServerError(String msg);
+void handleFileUpload();
+void handleFileRead();
+void handleNotFound();
+
+
+
+
+
 // In void loop
 void myIRS_check();
-
-
 void setupUNIXTimeLoop();
 void check_AWS_mqtt();
 void websocket_server_mdns_loop();
+void rgb_led_task_queue_CheckLoop();
+void timerUpdateLoop();
 
 #endif
