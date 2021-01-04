@@ -130,7 +130,7 @@ void update_groupId(String gID);
 void hslS2N(String mystr, uint8_t v);
 String hslN2S(uint8_t h, uint8_t s, uint8_t l);
 
-
+void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void replyOK();
 void replyOKWithMsg(String msg);

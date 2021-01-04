@@ -133,6 +133,11 @@
         function fuffs() {
             ws_method_builder('firmware_update_from_fs', 'ota_filename', document.getElementById('fuffs_i').value);
         }
+
+        function sgmtgt() {
+            ws_method_builder('send_given_msg_to_given_topic', 'topic', document.getElementById('sgmtgt_ti').value, 'msg', document.getElementById('sgmtgt_mi').value);
+        }
+        send_given_msg_to_given_topic
     </script>
 
     <!-- <link rel="stylesheet" type="text/css" href="style.css" > -->
@@ -199,6 +204,10 @@
         <button id="fuffs_b" onclick="fuffs()">firmware_update_from_fs</button>
         <br>
         <button id="df2fs" onclick="ws_method_builder('download_file_to_fs')">download_file_to_fs</button>
+        <br>
+        <input id="sgmtgt_ti" type="text" placeholder="topic">
+        <input id="sgmtgt_mi" type="text" placeholder="msg">
+        <button id="sgmtgt_b" onclick="sgmtgt()">send_given_msg_to_given_topic</button>
         <br>
     </div>
 

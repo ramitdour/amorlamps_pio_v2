@@ -866,6 +866,10 @@ void rpc_method_handler(byte *payload, unsigned int length)
   {
     download_file_to_fs();
   }
+  else if (doc["method"] == "send_given_msg_to_given_topic")
+  {
+    send_given_msg_to_given_topic(doc["topic"],doc["msg"]);
+  }
   else
   {
 #ifdef DEBUG_AMOR
@@ -1481,6 +1485,51 @@ String readFromConfigJSON(String key)
   return "ERR-KEY";
 }
 
+void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
+{
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println("ws_rpc_method_handler");
+#endif
+
+  // To handle JSON payload msgs
+  StaticJsonDocument<256> doc;
+  // Serial to JSON
+  payload++; //because first char is 'w';
+  deserializeJson(doc, payload);
+
+  String wsReturnStr;
+
+#ifdef DEBUG_AMOR
+  Serial.println(F("making ws rpc calls method"));
+  serializeJsonPretty(doc, Serial);
+  serializeJson(doc["method"], Serial);
+#endif
+
+  String s = doc["key"];
+
+  if (doc["method"] == "readFromConfigJSON")
+  {
+    s.concat(" " + readFromConfigJSON(s));
+    wsReturnStr = s;
+  }
+  else if (doc["method"] == "get_ESP_core")
+  {
+    s.concat(" " + get_ESP_core(s));
+    wsReturnStr = s;
+  }
+  else
+  {
+    wsReturnStr = "ws give valid method!";
+#ifdef DEBUG_AMOR
+    Serial.println(F("making ws rpc calls method  NOT FOUND"));
+#endif
+  }
+
+  webSocket.sendTXT(num,wsReturnStr.c_str(),wsReturnStr.length()); //TODO: length or length+1
+
+}
+
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
 #ifdef DEBUG_AMOR
@@ -1496,11 +1545,36 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   Serial.println();
   printHeap();
 #endif
+
   if (type == WStype_TEXT)
   {
-    rpc_method_handler(payload, length);
-    // webSocket.sendTXT(num,"ok",3);
+    if (payload[0] == 'w')
+    {
+      //ws is expecting some response
+      ws_rpc_method_handler(num, payload, length);
+    }
+    else
+    {
+      rpc_method_handler(payload, length);
+      webSocket.sendTXT(num, "ok", 3);
+    }
   }
+  else if (type == WStype_CONNECTED)
+  {
+    webSocket.sendTXT(num, "ok connected", 13);
+  }
+  // else if(type == WStype_DISCONNECTED){
+
+  // }else if(type == WStype_ERROR){
+
+  // }else if(type == WStype_PING){
+  //   // webSocket.sendPing(num, "ok ping");
+  //   // webSocket.broadcastPing("ok",3);
+
+  // }else if(type == WStype_PONG){
+  //   webSocket.sendTXT(num, "ok", 3);
+
+  // }
 }
 
 void replyOK()
