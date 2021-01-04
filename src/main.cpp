@@ -844,12 +844,11 @@ void rpc_method_handler(byte *payload, unsigned int length)
     bool ok = removeFromConfigJSON(doc["key"]);
     send_responseToAWS(String(ok));
   }
-   else if (doc["method"] == "get_ESP_core")
-  { 
+  else if (doc["method"] == "get_ESP_core")
+  {
     String s = doc["key"];
-    s.concat(" "+get_ESP_core(s));
+    s.concat(" " + get_ESP_core(s));
     send_responseToAWS(s);
-
   }
   else if (doc["method"] == "restart_device")
   {
@@ -1378,8 +1377,8 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
   {
 #ifdef DEBUG_AMOR
     Serial.println(F("Config file size is too large"));
-      Serial.print(F("Config file size="));
-  Serial.println(size);
+    Serial.print(F("Config file size="));
+    Serial.println(size);
 #endif
     // return (String) false;
     return "ERR-FSL";
@@ -1488,7 +1487,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   Serial.println(F("webSocketEvent"));
   // Serial.println(num);
   // Serial.println(type);
-  
+
   for (size_t i = 0; i < length; i++)
   {
     Serial.print((char)payload[i]);
@@ -1502,8 +1501,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     rpc_method_handler(payload, length);
     // webSocket.sendTXT(num,"ok",3);
   }
-
-  
 }
 
 void replyOK()
@@ -2087,7 +2084,71 @@ void download_file_to_fs()
 
 void firmware_update_from_fs(String ota_filename)
 {
-  // TODO: to be implemented
+// TODO: to be implemented
+#ifdef DEBUG_AMOR
+  Serial.println(F("firmware_update_from_fs START"));
+  Serial.println(ota_filename);
+  printHeap();
+#endif
+
+  if (!fsOK)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println(F("An Error has occurred while mounting SPIFFS"));
+    printHeap();
+#endif
+    return;
+  }
+
+  if (!ota_filename.startsWith("/"))
+  {
+    ota_filename = "/" + ota_filename;
+  }
+
+  File file = fileSystem->open(ota_filename, "r");
+  size_t fileSize = file.size();
+
+  if (!file)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Failed to open file for reading");
+#endif
+    return;
+  }
+
+  if (!Update.begin(fileSize))
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Cannot do the update");
+#endif
+    return;
+  };
+
+  Update.writeStream(file);
+
+  if (Update.end())
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Successful update");
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("Error Occurred: " + String(Update.getError()));
+#endif
+    return;
+  }
+
+  file.close();
+
+#ifdef DEBUG_AMOR
+  Serial.println("Reset in 4 seconds...");
+#endif
+
+  delay(4000);
+
+  restart_device();
 }
 
 void firmware_update_from_config()
@@ -2667,9 +2728,9 @@ String get_ESP_core(String key)
     returnMsg = WiFi.hostname();
   }
   else if (key == "localIP")
-  { 
-    
-    returnMsg = WiFi.localIP().toString() ;
+  {
+
+    returnMsg = WiFi.localIP().toString();
   }
   else if (key == "macAddress")
   {
@@ -2679,7 +2740,7 @@ String get_ESP_core(String key)
   {
     returnMsg = WiFi.SSID();
   }
-   else if (key == "psk")
+  else if (key == "psk")
   {
     returnMsg = WiFi.psk();
   }

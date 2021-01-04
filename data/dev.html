@@ -81,8 +81,6 @@
             // Socket = new WebSocket('ws://192.168.1.27/ws');
             // document.getElementById("myColorRange").value = 128;
 
-
-
             // Listen for messages
 
         }
@@ -163,47 +161,45 @@
         <br/>
         <span id="wsstate"></span>
         <br>
-        <input id="todmfxm_i" type="number" min="0" max="60" value="10">
+        <input id="todmfxm_i" type="number" min="0" max="60" value="10" placeholder="x">
         <button id="todmfxm_b" onclick="todmfxm()">turn_on_disco_mode_for_x_mins</button>
         <button id="todm_b" onclick="ws_method_builder('turn_off_disco_mode')">turn_off_disco_mode</button>
         <br>
-        <input id="srtA_i" type="text">
+        <input id="srtA_i" type="text" placeholder="responseMsg">
         <button id="srtA_b" onclick="srtA()">send_responseToAWS</button>
         <br>
         <button id="sttg_b" onclick="ws_method_builder('send_touch_toGroup')">send_touch_toGroup</button>
         <br>
         <button id="fswc_b" onclick="ws_method_builder('forget_saved_wifi_creds')">forget_saved_wifi_creds</button>
         <br>
-        <input id="uxmov_i" type="number">
+        <input id="uxmov_i" type="number" placeholder="x">
         <button id="uxmov_b" onclick="uxmov()">update_x_min_on_value</button>
         <br>
-        <input id="uxmov_i" type="text">
+        <input id="uxmov_i" type="text" placeholder="gID">
         <button id="uxmov_b" onclick="ugid()">update_groupId</button>
         <br>
-        <input id="rfcj_i" type="text">
+        <input id="rfcj_i" type="text" placeholder="key">
         <button id="rfcj_b" onclick="rfcj()">readFromConfigJSON</button>
         <br>
-        <input id="ufcj_ki" type="text">
-        <input id="ufcj_vi" type="text">
+        <input id="ufcj_ki" type="text" placeholder="key">
+        <input id="ufcj_vi" type="text" placeholder="value">
         <button id="ufcj_b" onclick="ufcj()">updatetoConfigJSON</button>
         <br>
-        <input id="refcj_i" type="text">
+        <input id="refcj_i" type="text" placeholder="key">
         <button id="refcj_b" onclick="refcj()">removeFromConfigJSON</button>
         <br>
-        <input id="gespc_i" type="text">
+        <input id="gespc_i" type="text" placeholder="key">
         <button id="gespc_i" onclick="gespc()">get_ESP_core</button>
         <br>
         <button onclick="ws_method_builder('restart_device')">restart_device</button>
         <br>
         <button onclick="ws_method_builder('firmware_update_from_config')">firmware_update_from_config</button>
         <br>
-        <input id="fuffs_i" type="text">
+        <input id="fuffs_i" type="text" placeholder="ota_filename">
         <button id="fuffs_b" onclick="fuffs()">firmware_update_from_fs</button>
         <br>
         <button id="df2fs" onclick="ws_method_builder('download_file_to_fs')">download_file_to_fs</button>
         <br>
-
-
     </div>
 
 
