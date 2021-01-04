@@ -2111,7 +2111,7 @@ void firmware_update_from_fs(String ota_filename)
   if (!file)
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Failed to open file for reading");
+    Serial.println(F("Failed to open file for reading"));
 #endif
     return;
   }
@@ -2119,7 +2119,7 @@ void firmware_update_from_fs(String ota_filename)
   if (!Update.begin(fileSize))
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Cannot do the update");
+    Serial.println(F("Cannot do the update"));
 #endif
     return;
   };
@@ -2129,7 +2129,7 @@ void firmware_update_from_fs(String ota_filename)
   if (Update.end())
   {
 #ifdef DEBUG_AMOR
-    Serial.println("Successful update");
+    Serial.println(F("Successful update"));
 #endif
   }
   else
@@ -2143,9 +2143,9 @@ void firmware_update_from_fs(String ota_filename)
   file.close();
 
 #ifdef DEBUG_AMOR
-  Serial.println("Reset in 4 seconds...");
+  Serial.println(F("Reset in 4 seconds..."));
 #endif
-
+  
   delay(4000);
 
   restart_device();
