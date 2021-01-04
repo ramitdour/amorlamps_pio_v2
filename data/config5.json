@@ -57,6 +57,14 @@
     "cert_private": "/private.der",
     "cert_ca_ver": "",
     "cert_ca_bin": "",
-    "cert_ca_fs": ""
+    "cert_ca_fs": "",
+
+    "s_index": "/index.html",
+    "s_style": "/style.css",
+    "s_script": "/script.js",
+    "s_config": "/config.json",
+    "s_dev": "/dev.html"
+
+
 
 }
