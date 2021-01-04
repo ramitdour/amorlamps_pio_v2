@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFiManager.h>
 #include <FastLED.h>
+#include <WebSocketsServer.h>
 
 #ifndef AmorLamps_h
 #define AmorLamps_h

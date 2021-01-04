@@ -845,9 +845,11 @@ void rpc_method_handler(byte *payload, unsigned int length)
     send_responseToAWS(String(ok));
   }
    else if (doc["method"] == "get_ESP_core")
-  {
-    String s = get_ESP_core(doc["key"]);
-    send_responseToAWS(doc["key"]+" "+s);
+  { 
+    String s = doc["key"];
+    s.concat(" "+get_ESP_core(s));
+    send_responseToAWS(s);
+
   }
   else if (doc["method"] == "restart_device")
   {
@@ -1345,7 +1347,7 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
 {
 #ifdef DEBUG_AMOR
   printHeap();
-  Serial.println("readFrom_given_ConfigJSON" + key + " from " + filename);
+  // Serial.println("readFrom_given_ConfigJSON" + key + " from " + filename);
 #endif
   // TODO: check is little fs is begun before this call ?
 
@@ -1353,7 +1355,7 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
   if (!configFile)
   {
 #ifdef DEBUG_AMOR
-    Serial.println(F("Failed to open config file"));
+    // Serial.println(F("Failed to open config file"));
 #endif
     // return (String) false;
     return "ERR-FO";
@@ -1362,9 +1364,9 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
   size_t size = configFile.size();
 
 #ifdef DEBUG_AMOR
-  printHeap();
-  Serial.print(F("Config file size="));
-  Serial.println(size);
+  // printHeap();
+  // Serial.print(F("Config file size="));
+  // Serial.println(size);
 #endif
 
   // totalSize = totalSize + size;
@@ -1376,6 +1378,8 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
   {
 #ifdef DEBUG_AMOR
     Serial.println(F("Config file size is too large"));
+      Serial.print(F("Config file size="));
+  Serial.println(size);
 #endif
     // return (String) false;
     return "ERR-FSL";
@@ -1404,9 +1408,9 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
 
 // printing json data to Serial Port in pretty format
 #ifdef DEBUG_AMOR
-  Serial.println(F(""));
+  // Serial.println(F(""));
   // serializeJsonPretty(doc, Serial);
-  Serial.println(F(""));
+  // Serial.println(F(""));
 #endif
 
   if (error)
@@ -1481,13 +1485,25 @@ String readFromConfigJSON(String key)
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
 #ifdef DEBUG_AMOR
-  Serial.println(F("webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)"));
+  Serial.println(F("webSocketEvent"));
+  // Serial.println(num);
+  // Serial.println(type);
+  
+  for (size_t i = 0; i < length; i++)
+  {
+    Serial.print((char)payload[i]);
+  }
+
+  Serial.println();
   printHeap();
 #endif
   if (type == WStype_TEXT)
   {
     rpc_method_handler(payload, length);
+    // webSocket.sendTXT(num,"ok",3);
   }
+
+  
 }
 
 void replyOK()
@@ -1715,6 +1731,7 @@ void websocket_server_mdns_setup()
     server.serveStatic("/style", LittleFS, "/style.css");
     server.serveStatic("/script", LittleFS, "/script.js");
     server.serveStatic("/config", LittleFS, "/config.json");
+    server.serveStatic("/dev", LittleFS, "/dev.html");
 
     server.onNotFound(handleNotFound);
     server.begin();
@@ -3129,6 +3146,7 @@ void reconnect_aws()
 #ifdef DEBUG_AMOR
         printHeap();
         Serial.println(F("client.subscribe  OK !!!"));
+        Serial.println(millis());
 #endif
 
         leds[NUM_LEDS - 1] = CRGB::Green;
