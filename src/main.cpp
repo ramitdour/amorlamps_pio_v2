@@ -1724,11 +1724,17 @@ void websocket_server_mdns_setup()
         },
         handleFileUpload);
 
-    server.serveStatic("/index", LittleFS, "/index.html");
-    server.serveStatic("/style", LittleFS, "/style.css");
-    server.serveStatic("/script", LittleFS, "/script.js");
-    server.serveStatic("/config", LittleFS, "/config.json");
-    server.serveStatic("/dev", LittleFS, "/dev.html");
+    // server.serveStatic("/index", LittleFS, "/index.html");
+    // server.serveStatic("/style", LittleFS, "/style.css");
+    // server.serveStatic("/script", LittleFS, "/script.js");
+    // server.serveStatic("/config", LittleFS, "/config.json");
+    // server.serveStatic("/dev", LittleFS, "/dev.html");
+
+    server.serveStatic("/index", LittleFS, readFromConfigJSON("s_index").c_str());
+    server.serveStatic("/style", LittleFS, readFromConfigJSON("s_style").c_str());
+    server.serveStatic("/script", LittleFS, readFromConfigJSON("s_script").c_str());
+    server.serveStatic("/config", LittleFS, readFromConfigJSON("s_config").c_str());
+    server.serveStatic("/dev", LittleFS, readFromConfigJSON("s_dev").c_str());
 
     server.onNotFound(handleNotFound);
     server.begin();
@@ -2145,7 +2151,7 @@ void firmware_update_from_fs(String ota_filename)
 #ifdef DEBUG_AMOR
   Serial.println(F("Reset in 4 seconds..."));
 #endif
-  
+
   delay(4000);
 
   restart_device();
