@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.0"};
 
-#define DEBUG_AMOR 1; // TODO:comment in production
+#define DEBUG_AMOR 1 // TODO:comment in production
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -232,8 +232,18 @@ void tick_turn_on_disco_mode_for_x_mins()
 void turn_on_disco_mode_for_x_mins(int x)
 {
   disable_touch_for_x_ms(4000);
+  
+  //this will turn off on going timer.
+  turn_off_rgb();
   ticker_turn_on_disco_mode_for_x_mins.start();
 }
+
+void turn_off_rgb()
+{
+  disable_touch_for_x_ms(3000);
+  method_handler(MXMINSON, 0, false, 0, 0);
+}
+
 
 void turn_off_disco_mode()
 {
@@ -795,6 +805,10 @@ void rpc_method_handler(byte *payload, unsigned int length)
   {
     method_handler((methodCode)doc["mc"], (int)doc["args"], (bool)doc["plus1arg"], (uint8_t)doc["s"], (uint8_t)doc["v"]);
   }
+  else if (doc["method"] == "turn_off_rgb")
+  {
+    turn_off_rgb();
+  }
   else if (doc["method"] == "turn_off_disco_mode")
   {
     turn_off_disco_mode();
@@ -866,9 +880,17 @@ void rpc_method_handler(byte *payload, unsigned int length)
   {
     download_file_to_fs();
   }
+  else if (doc["method"] == "delete_file_of_fs")
+  {
+    delete_file_of_fs(doc["filename"]);
+  }
+  else if (doc["method"] == "list_fs_files_sizes")
+  {
+    send_responseToAWS(list_fs_files_sizes());
+  }
   else if (doc["method"] == "send_given_msg_to_given_topic")
   {
-    send_given_msg_to_given_topic(doc["topic"],doc["msg"]);
+    send_given_msg_to_given_topic(doc["topic"], doc["msg"]);
   }
   else
   {
@@ -1513,21 +1535,31 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
     s.concat(" " + readFromConfigJSON(s));
     wsReturnStr = s;
   }
+  else if (doc["method"] == "ws_update_tosend_color")
+  {
+     method_handler(MUTOSENDRGB, (uint8_t)doc["h"], true, (uint8_t)doc["s"], 0);
+     method_handler(MBLEDX, 3, true, 1, 0);
+  }
   else if (doc["method"] == "get_ESP_core")
   {
     s.concat(" " + get_ESP_core(s));
     wsReturnStr = s;
   }
+  else if (doc["method"] == "list_fs_files_sizes")
+  {
+    wsReturnStr = list_fs_files_sizes();
+  }
   else
   {
-    wsReturnStr = "ws give valid method!";
+    wsReturnStr = "invalid method";
 #ifdef DEBUG_AMOR
     Serial.println(F("making ws rpc calls method  NOT FOUND"));
 #endif
+
+    //TODO: is it required ? check heap while execution.
+    rpc_method_handler(payload,length);
   }
-
-  webSocket.sendTXT(num,wsReturnStr.c_str(),wsReturnStr.length()); //TODO: length or length+1
-
+  webSocket.sendTXT(num, wsReturnStr.c_str(), wsReturnStr.length()); //TODO: length or length+1
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
@@ -1858,6 +1890,48 @@ void websocket_server_mdns_setup()
 // +OkuE6N36B9K
 // -----END CERTIFICATE-----
 // )EOF";
+
+void delete_file_of_fs(String filename)
+{
+#ifdef DEBUG_AMOR
+  Serial.print(F("delete_file_of_fs()"));
+  Serial.print(filename);
+  printHeap();
+#endif
+  // Make sure paths always start with "/"
+  if (!filename.startsWith("/"))
+  {
+    filename = "/" + filename;
+  }
+
+  bool delFlag = false;
+  Dir dir = fileSystem->openDir("/");
+  while (dir.next())
+  {
+    if (dir.fileName().equals(filename))
+    {
+      delFlag = true;
+      break;
+    }
+  }
+
+  if (delFlag)
+  {
+    fileSystem->remove(filename);
+    return;
+#ifdef DEBUG_AMOR
+    Serial.print(F("delete_file_of_fs() END ,filefound !!!"));
+    Serial.print(filename);
+    printHeap();
+#endif
+  }
+
+#ifdef DEBUG_AMOR
+  Serial.print(F("delete_file_of_fs() END ,file not found"));
+  Serial.print(filename);
+  printHeap();
+#endif
+}
 
 void download_file_to_fs()
 {
@@ -2550,6 +2624,7 @@ void tickWifiManagerLed()
   digitalWrite(wifiManagerLED, !digitalRead(wifiManagerLED));
 #ifdef DEBUG_AMOR
   Serial.println(F(" ..."));
+  Serial.println(digitalRead(wifiManagerLED));
 #endif
 }
 
@@ -2570,7 +2645,7 @@ void wifiManagerSetup()
   //set led pin as output
   pinMode(wifiManagerLED, OUTPUT);
 
-  digitalWrite(wifiManagerLED, LOW);
+  // digitalWrite(wifiManagerLED, LOW);
   // start ticker with 0.5 because we start in AP mode and try to connect
   tickerWifiManagerLed.attach(0.6, tickWifiManagerLed);
 
@@ -2703,6 +2778,43 @@ void printHeap()
   Serial.print(F("Free Heap>"));
   Serial.println(ESP.getFreeHeap());
 #endif
+}
+
+String list_fs_files_sizes()
+{
+#ifdef DEBUG_AMOR
+  Serial.print(F("Free Flash>"));
+  Serial.println(ESP.getFreeSketchSpace());
+  printHeap();
+#endif
+
+  StaticJsonDocument<512> files_json;
+
+  String str = "f";
+  uint8_t counter = 0;
+
+  Dir dir = fileSystem->openDir("/");
+  while (dir.next())
+  {
+    files_json[str + counter] = dir.fileName() + " " + dir.fileSize();
+    counter++;
+  }
+  files_json["count"] = counter;
+  files_json["FreeSketchSpace"] = ESP.getFreeSketchSpace();
+
+  // Lastly, you can print the resulting JSON to a String
+  String output;
+  serializeJson(files_json, output);
+
+#ifdef DEBUG_AMOR
+  Serial.print(F("Free Flash>"));
+  Serial.println(ESP.getFreeSketchSpace());
+  printHeap();
+  Serial.println(output);
+  serializeJson(files_json, Serial);
+#endif
+
+  return output;
 }
 
 // TODO:Delte this function in production
@@ -2865,19 +2977,17 @@ void setup()
   fileSystem->setConfig(fileSystemConfig);
   fsOK = fileSystem->begin();
 
-  if (fsOK)
+  if (!fsOK)
   {
 #ifdef DEBUG_AMOR
-
     printHeap();
     Serial.println(F("Failed to mount file system"));
 #endif
-    fileSystem->begin();
+    fileSystem->begin(); // retry once
   }
 
 #ifdef DEBUG_AMOR
   Serial.println(fsOK ? F("Filesystem initialized.") : F("Filesystem init failed!"));
-
   printHeap();
   Serial.println(F("setup_config_vars START"));
 #endif
@@ -2916,7 +3026,7 @@ void setup()
   // calibrate_setup_touch_sensor();
 
   wifiManagerSetup();
-  digitalWrite(wifiManagerLED, HIGH); // turning off the led after wifi connection
+  // digitalWrite(wifiManagerLED, HIGH); // turning off the led after wifi connection
 
 #ifdef DEBUG_AMOR
   Serial.println(F("setup_ISRs,setup_RGB_leds, wifiManagerSetup END"));
@@ -3021,9 +3131,7 @@ void myIRS1_method()
   // readFromConfigJSON("biggestString0");
   // printHeap();
 
-  readFromConfigJSON("apSSID");
-  updatetoConfigJSON("apSSID", "update1");
-  readFromConfigJSON("apSSID");
+  tickWifiManagerLed();
 }
 
 void disable_touch_for_x_ms(uint16_t x)
@@ -3289,7 +3397,6 @@ void reconnect_aws()
         Serial.println(F("client.subscribe  OK !!!"));
         Serial.println(millis());
 #endif
-
         leds[NUM_LEDS - 1] = CRGB::Green;
         FastLED.show();
         delay(1000);
@@ -3320,6 +3427,10 @@ void reconnect_aws()
         Serial.print(F("WiFiClientSecure SSL error: "));
         Serial.println(buf);
 #endif
+      }
+      if (digitalRead(wifiManagerLED) != 1)
+      {
+        tickWifiManagerLed();
       }
     }
   }
@@ -3420,5 +3531,13 @@ void loop()
   websocket_server_mdns_loop(); //TODO:uncomment
 
   rgb_led_task_queue_CheckLoop();
+
   timerUpdateLoop();
+  
+  //TODO:find some other way , force fully turing on onboard led.
+  //find why it is  being turned on , is it because of pub sub client?
+  if (digitalRead(wifiManagerLED) != 1)
+  {
+    tickWifiManagerLed();
+  }
 }

@@ -86,8 +86,13 @@
         }
 
         function send_ws_msg(msg) {
-            console.log(msg);
-            Socket.send(msg);
+            if (document.getElementById("wscb_i").checked == true) {
+                console.log('w' + msg);
+                Socket.send('w' + msg);
+            } else {
+                console.log(msg);
+                Socket.send(msg);
+            }
         }
 
 
@@ -137,7 +142,26 @@
         function sgmtgt() {
             ws_method_builder('send_given_msg_to_given_topic', 'topic', document.getElementById('sgmtgt_ti').value, 'msg', document.getElementById('sgmtgt_mi').value);
         }
-        send_given_msg_to_given_topic
+
+        function lfsfsws() {
+            console.log('wait');
+        }
+
+        function mthd_call(mc, args, plus1arg, s, v) {
+            var myObj = '{"method":"method_handler","mc":"' + mc + '", "args":"' + args + '", "plus1arg":"' + plus1arg + '", "s":"' + s + '", "v":"' + v + '"}';
+            send_ws_msg(myObj);
+
+        }
+
+        function mthd() {
+            mthd_call(
+                document.getElementById('mthd_mi').value,
+                document.getElementById('mthd_ai').value,
+                document.getElementById('mthd_pi').value,
+                document.getElementById('mthd_si').value,
+                document.getElementById('mthd_vi').value
+            );
+        }
     </script>
 
     <!-- <link rel="stylesheet" type="text/css" href="style.css" > -->
@@ -163,12 +187,17 @@
 
     <div>
         <span id="wsurl"></span>
-        <br/>
+        <br>
         <span id="wsstate"></span>
+        <br>
+        <label for="wscb_i">is WS response expected ?</label><br>
+        <input type="checkbox" id="wscb_i" name="wscb_i">
         <br>
         <input id="todmfxm_i" type="number" min="0" max="60" value="10" placeholder="x">
         <button id="todmfxm_b" onclick="todmfxm()">turn_on_disco_mode_for_x_mins</button>
         <button id="todm_b" onclick="ws_method_builder('turn_off_disco_mode')">turn_off_disco_mode</button>
+        <br>
+        <button id="todm_b" onclick="ws_method_builder('turn_off_rgb')">turn_off_rgb</button>
         <br>
         <input id="srtA_i" type="text" placeholder="responseMsg">
         <button id="srtA_b" onclick="srtA()">send_responseToAWS</button>
@@ -205,10 +234,22 @@
         <br>
         <button id="df2fs" onclick="ws_method_builder('download_file_to_fs')">download_file_to_fs</button>
         <br>
+        <button id="lfsfs" onclick="ws_method_builder('list_fs_files_sizes')">list_fs_files_sizes</button>
+        <br>
+        <button id="lfsfsws" onclick="lfsfsws()">list_fs_files_sizes to ws</button>
+        <br>
         <input id="sgmtgt_ti" type="text" placeholder="topic">
         <input id="sgmtgt_mi" type="text" placeholder="msg">
         <button id="sgmtgt_b" onclick="sgmtgt()">send_given_msg_to_given_topic</button>
         <br>
+        <input id="mthd_mi" type="text" placeholder="mc">
+        <input id="mthd_ai" type="text" placeholder="args">
+        <input id="mthd_pi" type="text" placeholder="plus1arg">
+        <input id="mthd_si" type="text" placeholder="s">
+        <input id="mthd_vi" type="text" placeholder="v">
+        <button id="mthd_b" onclick="mthd()">method_handler</button>
+        <br>
+
     </div>
 
 

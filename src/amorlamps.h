@@ -63,8 +63,9 @@ String gethotspotname();
 void setupUNIXTime();
 
 void firmware_update_from_config();
-void download_file_to_fs();
 void firmware_update_from_fs(String ota_filename);
+void download_file_to_fs();
+void delete_file_of_fs(String filename);
 
 void websocket_server_mdns_setup();
 
@@ -72,6 +73,7 @@ void readAwsCerts();
 void publish_boot_data();
 void subscribeDeviceTopics();
 
+String list_fs_files_sizes();
 void listAndReadFiles(); //TODO: not for production
 String get_ESP_core(String key) ;
 
@@ -115,6 +117,7 @@ void tick_blink_led_x_times();
 void tick_turn_on_disco_mode_for_x_mins();
 void tickWifiManagerLed();
 
+void turn_off_rgb();
 void turn_off_disco_mode();
 void turn_on_disco_mode_for_x_mins(int x);
 void set_single_RGB_color(uint8_t h, uint8_t s, uint8_t v);
