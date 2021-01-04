@@ -1025,7 +1025,15 @@ void publish_boot_data()
 
   struct tm *ptm = gmtime((time_t *)&et);
 
-  String msg = "{\"deviceId\":\"" + deviceId + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"time\":\"" + timeClient.getFormattedTime() + "\",\"date\":\"" + (ptm->tm_mday) + "-" + (ptm->tm_mon + 1) + "-" + (ptm->tm_year + 1900) + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
+  String msg = "{\"deviceId\":\"" + deviceId 
+  + "\",\"groupId\":\"" + groupId 
+  + "\",\"et\":\"" + et
+  + "\",\"FW_ver\":\"" + FirmwareVer  
+  + "\",\"time\":\"" + timeClient.getFormattedTime() 
+  + "\",\"date\":\"" + (ptm->tm_mday) + "-" + (ptm->tm_mon + 1) + "-" + (ptm->tm_year + 1900) 
+  + "\",\"localIP\":\"" + WiFi.localIP().toString() 
+  + "\",\"resetInfo\":\"" + ESP.getResetInfo() 
+  + "\"}";
 
 #ifdef DEBUG_AMOR
   Serial.println(msg);
@@ -3353,9 +3361,9 @@ void reconnect_aws()
 
         // TODO : delete ,not for production
         // Once connected, publish an announcement...
-        clientPubSub.publish("outTopic", "hello world");
+        // clientPubSub.publish("outTopic", "hello world");
         // ... and resubscribe
-        clientPubSub.subscribe("inTopic");
+        // clientPubSub.subscribe("inTopic");
 
         Serial.println(F("subscribeDeviceShadow START"));
 #endif
