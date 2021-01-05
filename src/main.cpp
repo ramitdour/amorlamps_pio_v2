@@ -81,7 +81,7 @@ unsigned long myISR2_flag_counter_cooldown_millis = 0;
 
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 // How many leds in your strip?
-#define NUM_LEDS 10
+#define NUM_LEDS 12 //TODO: check no.s of strips
 // RGB led
 #define DATA_PIN 4 //d2
 // Define the array of leds
@@ -421,7 +421,6 @@ void tick_fade_in_out_RGB_x_times()
     Serial.println(current_rgb_hsv_values[2]);
     Serial.println(desired_rgb_hsv_values[2]);
     Serial.println(fade_in_out_RGB_x_times_temp_intensity_HOLD);
-
 #endif
   }
 
@@ -1547,6 +1546,7 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
   {
      method_handler(MUTOSENDRGB, (uint8_t)doc["h"], true, (uint8_t)doc["s"], 0);
      method_handler(MBLEDX, 3, true, 1, 0);
+     s = "c ok";
   }
   else if (doc["method"] == "get_ESP_core")
   {
@@ -2630,10 +2630,10 @@ void tickWifiManagerLed()
   // digitalWrite(wifiManagerLED, !state);    // set pin to the opposite state
 
   digitalWrite(wifiManagerLED, !digitalRead(wifiManagerLED));
-#ifdef DEBUG_AMOR
-  Serial.println(F(" ..."));
-  Serial.println(digitalRead(wifiManagerLED));
-#endif
+// #ifdef DEBUG_AMOR
+//   Serial.println(F(" ..."));
+//   Serial.println(digitalRead(wifiManagerLED));
+// #endif
 }
 
 // wifi managet setup
@@ -3159,43 +3159,43 @@ void myIRS2_method()
   printHeap();
 #endif
 
-  //   myISR2_flag_counter++;
-  //   myISR2_flag_counter_cooldown++;
-  //   if (myISR2_flag_counter_cooldown == 0)
-  //   {
-  //     myISR2_flag_counter_cooldown_millis = millis();
-  //   }
+    myISR2_flag_counter++;
+    myISR2_flag_counter_cooldown++;
+    if (myISR2_flag_counter_cooldown == 0)
+    {
+      myISR2_flag_counter_cooldown_millis = millis();
+    }
 
-  //   if (myISR2_flag_counter_cooldown > 15)
-  //   {
-  //     if (millis() - myISR2_flag_counter_cooldown_millis < 15000)
-  //     {
-  //       rgb_led_task_queue.flush();
-  // #ifdef DEBUG_AMOR
-  //       Serial.println(F("==rgb_led_task_queue.flush(); 30 sec mai 30 se jyada touch=="));
-  //       Serial.println(rgb_led_task_queue.getCount());
-  //       Serial.println(rgb_led_task_queue.getRemainingCount());
-  // #endif
-  //       restart_device();
-  //     }
-  //     else
-  //     {
-  //       myISR2_flag_counter_cooldown = 0;
-  // #ifdef DEBUG_AMOR
-  //       Serial.println(F("==rmyISR2_flag_counter_cooldown= 0 RESET=="));
-  //       Serial.println(rgb_led_task_queue.getCount());
-  //       Serial.println(rgb_led_task_queue.getRemainingCount());
-  // #endif
-  //     }
-  //   }
+    if (myISR2_flag_counter_cooldown > 15)
+    {
+      if (millis() - myISR2_flag_counter_cooldown_millis < 8000)
+      {
+        rgb_led_task_queue.flush();
+  #ifdef DEBUG_AMOR
+        Serial.println(F("==rgb_led_task_queue.flush(); 30 sec mai 30 se jyada touch=="));
+        Serial.println(rgb_led_task_queue.getCount());
+        Serial.println(rgb_led_task_queue.getRemainingCount());
+  #endif
+        restart_device();
+      }
+      else
+      {
+        myISR2_flag_counter_cooldown = 0;
+  #ifdef DEBUG_AMOR
+        Serial.println(F("==rmyISR2_flag_counter_cooldown= 0 RESET=="));
+        Serial.println(rgb_led_task_queue.getCount());
+        Serial.println(rgb_led_task_queue.getRemainingCount());
+  #endif
+      }
+    }
 
-  // #ifdef DEBUG_AMOR
-  //   Serial.println(F("==myIRS2_method called=="));
-  //   Serial.println(myISR2_flag_counter);
-  //   Serial.println(myISR2_flag_counter_cooldown);
-  // #endif
+  #ifdef DEBUG_AMOR
+    Serial.println(F("==myIRS2_method called=="));
+    Serial.println(myISR2_flag_counter);
+    Serial.println(myISR2_flag_counter_cooldown);
+  #endif
 
-  // send_touch_toGroup();
+  send_touch_toGroup();
 }
 
 // Restart device after 1s delay
@@ -3325,7 +3325,7 @@ void reconnect_aws()
   if (!clientPubSub.connected())
   {
     // clientPubSub_connected_counter++;
-    if (millis() - reconnect_aws_millis > 5000)
+    if (millis() - reconnect_aws_millis > 15000)
     {
       // clientPubSub_connected_counter = 0;
 
@@ -3542,10 +3542,11 @@ void loop()
 
   timerUpdateLoop();
   
+  //this is causing lag in the whole program.
   //TODO:find some other way , force fully turing on onboard led.
   //find why it is  being turned on , is it because of pub sub client?
-  if (digitalRead(wifiManagerLED) != 1)
-  {
-    tickWifiManagerLed();
-  }
+  // if (digitalRead(wifiManagerLED) != 1)
+  // {
+  //   tickWifiManagerLed();
+  // }
 }

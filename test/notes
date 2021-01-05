@@ -40,3 +40,16 @@ regex to make F strings
 (Serial.print\(){1}("(.*)"){1}
 (Serial.println\(){1}("(.*)"){1}
 $1F($2)
+
+TODO: 
+error logs if not connected to client , or send logs to aws 
+shadow if possiable
+index.html
+check all print statements
+hardcoded values to soft coded
+aws char array re check;
+delete unnecessary data of data/
+
+// wifi reset on button press or hold for 2 sec
+
+update config file json , given file,
