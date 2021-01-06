@@ -1043,7 +1043,6 @@ void publish_boot_data()
 
   String msg = "{\"deviceId\":\"" + deviceId + "\",\"reconAwsCount\":\"" + recon_aws_count + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"FW_ver\":\"" + FirmwareVer + "\",\"time\":\"" + timeClient.getFormattedTime() + "\",\"date\":\"" + (ptm->tm_mday) + "-" + (ptm->tm_mon + 1) + "-" + (ptm->tm_year + 1900) + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
 
-
 #ifdef DEBUG_AMOR
   Serial.println(msg);
 #endif
@@ -1866,6 +1865,19 @@ void websocket_server_mdns_setup()
     webSocket.begin();
 
     webSocket.onEvent(webSocketEvent);
+
+    if (!MDNS.begin("setupamor"))
+    {
+#ifdef DEBUG_AMOR // Start the mDNS responder for setupamor.local
+      Serial.println("Error setting up MDNS responder!");
+#endif
+    }
+    else
+    {
+#ifdef DEBUG_AMOR
+      Serial.println("mDNS responder started");
+#endif
+    }
   }
   else
   {
