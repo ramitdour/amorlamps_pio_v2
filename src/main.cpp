@@ -184,7 +184,9 @@ unsigned long timeClient_counter_lastvalid_millis = 0;
 char *AWS_endpoint = "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com"; //MQTT broker ip
 uint8_t failed_aws_trials_counter_base = 5;                             // to be updated if need to do ota , to disable restart in reconnet to aws loop
 uint8_t failed_aws_trials_counter = 0;
+uint8_t recon_aws_count = 0;
 unsigned long reconnect_aws_millis = 0;
+
 // const char *aws_topic = "$aws/things/esp8266_C7ED21/";
 
 // aws_topic;
@@ -232,7 +234,7 @@ void tick_turn_on_disco_mode_for_x_mins()
 void turn_on_disco_mode_for_x_mins(int x)
 {
   disable_touch_for_x_ms(4000);
-  
+
   //this will turn off on going timer.
   turn_off_rgb();
   ticker_turn_on_disco_mode_for_x_mins.start();
@@ -243,7 +245,6 @@ void turn_off_rgb()
   disable_touch_for_x_ms(3000);
   method_handler(MXMINSON, 0, false, 0, 0);
 }
-
 
 void turn_off_disco_mode()
 {
@@ -508,7 +509,7 @@ void update_my_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
   my_rgb_hsv_values[0] = h;
   my_rgb_hsv_values[1] = s;
 
-  // updatetoConfigJSON("myrgbHSL", hslN2S(h, s, v));  //TODO: is it required? NO!
+  // updatetoConfigJSON("myrgbHSL", hslN2S(h, s, v));  //TODO: is it required? ANS NO!
 
 #ifdef DEBUG_AMOR
   Serial.println(F("Updated HSV my hsv"));
@@ -782,16 +783,19 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
   }
   else if (topicStr.endsWith(""))
   {
+    // delete if not required in code clean up
   }
   else
   {
+    // delete if not required in code clean up
   }
 }
 
 void rpc_method_handler(byte *payload, unsigned int length)
 {
   // To handle JSON payload msgs
-  StaticJsonDocument<256> doc;
+  // 512 because it might have long urls
+  StaticJsonDocument<512> doc;
   // Serial to JSON
   deserializeJson(doc, payload);
 
@@ -847,10 +851,23 @@ void rpc_method_handler(byte *payload, unsigned int length)
   {
     send_responseToAWS(readFromConfigJSON(doc["key"]));
   }
+  else if (doc["method"] == "readFrom_given_ConfigJSON")
+  {
+    String key = doc["key"];
+    String filename = doc["filename"];
+    send_responseToAWS(readFrom_given_ConfigJSON(key, filename));
+  }
   else if (doc["method"] == "updatetoConfigJSON")
   {
     bool ok = updatetoConfigJSON(doc["key"], doc["value"]);
     send_responseToAWS(String(ok));
+  }
+  else if (doc["method"] == "updateto_givenfile_ConfigJSON")
+  {
+    String key = doc["key"];
+    String value = doc["value"];
+    String filename = doc["filename"];
+    send_responseToAWS(updateto_givenfile_ConfigJSON(key, value, filename, (bool)doc["flag"]) ? key : "fail");
   }
   else if (doc["method"] == "removeFromConfigJSON")
   {
@@ -1024,15 +1041,8 @@ void publish_boot_data()
 
   struct tm *ptm = gmtime((time_t *)&et);
 
-  String msg = "{\"deviceId\":\"" + deviceId 
-  + "\",\"groupId\":\"" + groupId 
-  + "\",\"et\":\"" + et
-  + "\",\"FW_ver\":\"" + FirmwareVer  
-  + "\",\"time\":\"" + timeClient.getFormattedTime() 
-  + "\",\"date\":\"" + (ptm->tm_mday) + "-" + (ptm->tm_mon + 1) + "-" + (ptm->tm_year + 1900) 
-  + "\",\"localIP\":\"" + WiFi.localIP().toString() 
-  + "\",\"resetInfo\":\"" + ESP.getResetInfo() 
-  + "\"}";
+  String msg = "{\"deviceId\":\"" + deviceId + "\",\"reconAwsCount\":\"" + recon_aws_count + "\",\"groupId\":\"" + groupId + "\",\"et\":\"" + et + "\",\"FW_ver\":\"" + FirmwareVer + "\",\"time\":\"" + timeClient.getFormattedTime() + "\",\"date\":\"" + (ptm->tm_mday) + "-" + (ptm->tm_mon + 1) + "-" + (ptm->tm_year + 1900) + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
+
 
 #ifdef DEBUG_AMOR
   Serial.println(msg);
@@ -1361,7 +1371,7 @@ bool updatetoConfigJSON(String key, String value)
 #endif
   return updateto_givenfile_ConfigJSON(key, value, tempStr, isToDeleteupdatetoConfigJSONflag);
 
-  // in future will write to any one of 789 only , on basis of size;
+  // in future will write to any one of 7,8,9 config files only , on basis of size;
 
   // key not found in any of the file
   // "ERR-KEY";
@@ -1544,9 +1554,9 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
   }
   else if (doc["method"] == "ws_update_tosend_color")
   {
-     method_handler(MUTOSENDRGB, (uint8_t)doc["h"], true, (uint8_t)doc["s"], 0);
-     method_handler(MBLEDX, 3, true, 1, 0);
-     s = "c ok";
+    method_handler(MUTOSENDRGB, (uint8_t)doc["h"], true, (uint8_t)doc["s"], 0);
+    method_handler(MBLEDX, 3, true, 1, 0);
+    s = "c ok";
   }
   else if (doc["method"] == "get_ESP_core")
   {
@@ -1565,7 +1575,7 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
 #endif
 
     //TODO: is it required ? check heap while execution.
-    rpc_method_handler(payload,length);
+    rpc_method_handler(payload, length);
   }
   webSocket.sendTXT(num, wsReturnStr.c_str(), wsReturnStr.length()); //TODO: length or length+1
 }
@@ -2630,10 +2640,10 @@ void tickWifiManagerLed()
   // digitalWrite(wifiManagerLED, !state);    // set pin to the opposite state
 
   digitalWrite(wifiManagerLED, !digitalRead(wifiManagerLED));
-// #ifdef DEBUG_AMOR
-//   Serial.println(F(" ..."));
-//   Serial.println(digitalRead(wifiManagerLED));
-// #endif
+  // #ifdef DEBUG_AMOR
+  //   Serial.println(F(" ..."));
+  //   Serial.println(digitalRead(wifiManagerLED));
+  // #endif
 }
 
 // wifi managet setup
@@ -3159,41 +3169,41 @@ void myIRS2_method()
   printHeap();
 #endif
 
-    myISR2_flag_counter++;
-    myISR2_flag_counter_cooldown++;
-    if (myISR2_flag_counter_cooldown == 0)
-    {
-      myISR2_flag_counter_cooldown_millis = millis();
-    }
+  myISR2_flag_counter++;
+  myISR2_flag_counter_cooldown++;
+  if (myISR2_flag_counter_cooldown == 0)
+  {
+    myISR2_flag_counter_cooldown_millis = millis();
+  }
 
-    if (myISR2_flag_counter_cooldown > 15)
+  if (myISR2_flag_counter_cooldown > 15)
+  {
+    if (millis() - myISR2_flag_counter_cooldown_millis < 8000)
     {
-      if (millis() - myISR2_flag_counter_cooldown_millis < 8000)
-      {
-        rgb_led_task_queue.flush();
-  #ifdef DEBUG_AMOR
-        Serial.println(F("==rgb_led_task_queue.flush(); 30 sec mai 30 se jyada touch=="));
-        Serial.println(rgb_led_task_queue.getCount());
-        Serial.println(rgb_led_task_queue.getRemainingCount());
-  #endif
-        restart_device();
-      }
-      else
-      {
-        myISR2_flag_counter_cooldown = 0;
-  #ifdef DEBUG_AMOR
-        Serial.println(F("==rmyISR2_flag_counter_cooldown= 0 RESET=="));
-        Serial.println(rgb_led_task_queue.getCount());
-        Serial.println(rgb_led_task_queue.getRemainingCount());
-  #endif
-      }
+      rgb_led_task_queue.flush();
+#ifdef DEBUG_AMOR
+      Serial.println(F("==rgb_led_task_queue.flush(); 30 sec mai 30 se jyada touch=="));
+      Serial.println(rgb_led_task_queue.getCount());
+      Serial.println(rgb_led_task_queue.getRemainingCount());
+#endif
+      restart_device();
     }
+    else
+    {
+      myISR2_flag_counter_cooldown = 0;
+#ifdef DEBUG_AMOR
+      Serial.println(F("==rmyISR2_flag_counter_cooldown= 0 RESET=="));
+      Serial.println(rgb_led_task_queue.getCount());
+      Serial.println(rgb_led_task_queue.getRemainingCount());
+#endif
+    }
+  }
 
-  #ifdef DEBUG_AMOR
-    Serial.println(F("==myIRS2_method called=="));
-    Serial.println(myISR2_flag_counter);
-    Serial.println(myISR2_flag_counter_cooldown);
-  #endif
+#ifdef DEBUG_AMOR
+  Serial.println(F("==myIRS2_method called=="));
+  Serial.println(myISR2_flag_counter);
+  Serial.println(myISR2_flag_counter_cooldown);
+#endif
 
   send_touch_toGroup();
 }
@@ -3330,6 +3340,7 @@ void reconnect_aws()
       // clientPubSub_connected_counter = 0;
 
       reconnect_aws_millis = millis();
+      recon_aws_count++;
 
       leds[NUM_LEDS - 1] = CRGB::MediumVioletRed;
       FastLED.show();
@@ -3541,7 +3552,7 @@ void loop()
   rgb_led_task_queue_CheckLoop();
 
   timerUpdateLoop();
-  
+
   //this is causing lag in the whole program.
   //TODO:find some other way , force fully turing on onboard led.
   //find why it is  being turned on , is it because of pub sub client?
