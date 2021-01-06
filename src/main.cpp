@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.0"};
 
-#define DEBUG_AMOR 1 // TODO:comment in production
+// #define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -2992,6 +2992,27 @@ void setup_config_vars()
 
   aws_topic_str = "$aws/things/" + deviceId + "/";
   aws_group_topic_str = "amorgroup/" + groupId + "/";
+
+  String myrgbHSL = readFromConfigJSON("myrgbHSL");
+  String toSendHSL = readFromConfigJSON("toSendHSL");
+
+  hslS2N(myrgbHSL, 0);
+  hslS2N(toSendHSL, 1);
+
+   if (readFromConfigJSON("localIP") != WiFi.localIP().toString())
+  {
+    updatetoConfigJSON("localIP", WiFi.localIP().toString());
+#ifdef DEBUG_AMOR
+    Serial.println(" YES IP change is required in flash memory");
+#endif
+  }
+  else
+  {
+#ifdef DEBUG_AMOR
+    Serial.println("No IP change is required in flash memory");
+#endif
+  }
+  
 }
 
 void setup()
