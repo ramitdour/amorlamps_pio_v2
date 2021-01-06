@@ -56,7 +56,7 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"1.0"};
+const String FirmwareVer = {"1.1"};
 
 // #define DEBUG_AMOR 1 // TODO:comment in productions
 
