@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.1"};
 
-// #define DEBUG_AMOR 1 // TODO:comment in productions
+#define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -81,7 +81,7 @@ unsigned long myISR2_flag_counter_cooldown_millis = 0;
 
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 // How many leds in your strip?
-#define NUM_LEDS 12 //TODO: check no.s of strips
+#define NUM_LEDS 10 //TODO: check no.s of strips
 // RGB led
 #define DATA_PIN 4 //d2
 // Define the array of leds
@@ -791,6 +791,9 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
   }
 }
 
+// method flags /enum
+bool download_file_to_fs_flag = false;
+
 void rpc_method_handler(byte *payload, unsigned int length)
 {
   // To handle JSON payload msgs
@@ -894,7 +897,8 @@ void rpc_method_handler(byte *payload, unsigned int length)
   }
   else if (doc["method"] == "download_file_to_fs")
   {
-    download_file_to_fs();
+    // download_file_to_fs();
+    download_file_to_fs_flag = true;
   }
   else if (doc["method"] == "delete_file_of_fs")
   {
@@ -1577,8 +1581,8 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
     Serial.println(F("making ws rpc calls method  NOT FOUND"));
 #endif
 
-    //TODO: is it required ? check heap while execution.
-    rpc_method_handler(payload, length);
+    //TODO: is it required ? check heap while execution. , this is not working , find issue.
+    // rpc_method_handler(payload, length); // disabled code
   }
   webSocket.sendTXT(num, wsReturnStr.c_str(), wsReturnStr.length()); //TODO: length or length+1
 }
@@ -1653,6 +1657,7 @@ void replyServerError(String msg)
 void handleFileUpload()
 {
   Serial.println(F("handleFileUpload() START"));
+  printHeap();
 
   String path = server.uri();
   Serial.println(String("handleFileRead: ") + path);
@@ -2213,22 +2218,29 @@ void download_file_to_fs()
   // Download file
   int remaining = contentLength;
   int received;
-  uint8_t buff[128] = {0};
+  uint8_t buff[256] = {0};
+
+  Serial.println(F("file opened now  ,writing data"));
+  Serial.println(filename);
+  Serial.println(remaining);
 
   // read all data from server
-  while (espClient.status() == ESTABLISHED && remaining > 0)
+  while (remaining > 0 && espClient.status() == ESTABLISHED)
   {
     // read up to buffer size
     received = espClient.readBytes(buff, ((remaining > sizeof(buff)) ? sizeof(buff) : remaining));
 
     // write it to file
     f.write(buff, received);
+    // Serial.write(buff, received);
 
     if (remaining > 0)
     {
       remaining -= received;
     }
-    yield();
+
+    // yield();
+    // delay(0);
 
     // Serial.write(buff, received);
     // if (remaining > 0)
@@ -2237,8 +2249,51 @@ void download_file_to_fs()
     // }
 
     Serial.println("espClient status --- " + String(espClient.status()));
+    Serial.print(remaining);
+    Serial.print("/");
+    Serial.println(contentLength);
     printHeap();
   }
+
+  // for (uint8_t i = 10; i < contentLength; i++)
+  // {
+  //   /* code */
+  //   if (remaining > 0 && espClient.status() == ESTABLISHED)
+  //   {
+  //     // read up to buffer size
+  //   received = espClient.readBytes(buff, ((remaining > sizeof(buff)) ? sizeof(buff) : remaining));
+
+  //   // write it to file
+  //   // f.write(buff, received);
+  //   Serial.write(buff, received);
+  //   Serial.flush();
+
+  //   if (remaining > 0)
+  //   {
+  //     remaining -= received;
+  //   }
+  //   // yield();
+  //   // delay(0);
+
+  //   // Serial.write(buff, received);
+  //   // if (remaining > 0)
+  //   // {
+  //   //   remaining -= received;
+  //   // }
+
+  //   Serial.println("espClient status --- " + String(espClient.status()));
+  //   Serial.println(i);
+  //   printHeap();
+  //   }
+  //   else
+  //   {
+  //     Serial.print("i>");
+  //     Serial.println(i);
+  //     Serial.print("remaining>");
+  //     Serial.println(remaining);
+  //     break;
+  //   }
+  // }
 
   if (remaining != 0)
     Serial.println(" Not recieved full data remaing =" + String(remaining) + "/" + String(contentLength));
@@ -2988,6 +3043,7 @@ void setup_config_vars()
 #ifdef DEBUG_AMOR
   Serial.println(readFromConfigJSON("device_id"));
   printHeap();
+  Serial.println(WiFi.macAddress());
 #endif
   deviceId = readFromConfigJSON("device_id");
   groupId = readFromConfigJSON("groupId");
@@ -3186,6 +3242,7 @@ void myIRS1_method()
   // printHeap();
 
   tickWifiManagerLed();
+  download_file_to_fs();
 }
 
 void disable_touch_for_x_ms(uint16_t x)
@@ -3596,4 +3653,8 @@ void loop()
   // {
   //   tickWifiManagerLed();
   // }
+  if (download_file_to_fs_flag)
+  {
+    download_file_to_fs();
+  }
 }
