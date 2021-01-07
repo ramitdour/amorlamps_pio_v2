@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.2"};
 
-#define DEBUG_AMOR 1 // TODO:comment in productions
+// #define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -538,8 +538,8 @@ void update_x_min_on_value(int x)
 
   // Update in config json
   bool ok = updatetoConfigJSON("x_min_on_value", String(x));
-  
-  #ifdef DEBUG_AMOR
+
+#ifdef DEBUG_AMOR
   if (ok)
   {
     Serial.println(F("update_x_min_on_value"));
@@ -550,7 +550,9 @@ void update_x_min_on_value(int x)
     Serial.println(F("FAILED x_min_on_value"));
     Serial.println(readFromConfigJSON("x_min_on_value"));
   }
-  #endif
+#endif
+
+  restart_device();
 }
 
 void update_groupId(String gID)
@@ -861,8 +863,15 @@ void rpc_method_handler(byte *payload, unsigned int length)
   }
   else if (doc["method"] == "updatetoConfigJSON")
   {
-    bool ok = updatetoConfigJSON(doc["key"], doc["value"]);
-    send_responseToAWS(String(ok));
+    String key = doc["key"];
+    String value = doc["value"];
+    bool ok = updatetoConfigJSON(key,value);
+#ifdef DEBUG_AMOR
+    Serial.println(F("updatetoConfigJSON ok >"));
+    Serial.println(ok);
+#endif
+
+    // send_responseToAWS(String(ok));
   }
   else if (doc["method"] == "updateto_givenfile_ConfigJSON")
   {
@@ -1248,6 +1257,7 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename,
 #ifdef DEBUG_AMOR
   Serial.print(F("Config file size read only="));
   Serial.println(size);
+  printHeap();
 #endif
 
   // totalSize = totalSize + size;
@@ -1263,8 +1273,17 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename,
     return false;
   }
 
+#ifdef DEBUG_AMOR
+  Serial.println(F("Allocate a buffer START"));
+  printHeap();
+#endif
   // Allocate a buffer to store contents of the file.
   std::unique_ptr<char[]> buf(new char[size]);
+
+#ifdef DEBUG_AMOR
+  Serial.println(F("Allocate a buffer END"));
+  printHeap();
+#endif
 
   // We don't use String here because ArduinoJson library requires the input
   // buffer to be mutable. If you don't use ArduinoJson, you may as well
@@ -1273,7 +1292,19 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename,
 
   StaticJsonDocument<1024> doc;
 
+#ifdef DEBUG_AMOR
+  Serial.println("doc.memoryUsage()");
+  Serial.println(doc.memoryUsage());
+  printHeap();
+#endif
+
   DeserializationError error = deserializeJson(doc, buf.get());
+
+#ifdef DEBUG_AMOR
+  Serial.println("doc.memoryUsage()");
+  Serial.println(doc.memoryUsage());
+  printHeap();
+#endif
 
 #ifdef DEBUG_AMOR //
   if (error)
@@ -1281,34 +1312,10 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename,
     Serial.print(F("deserializeJson() failed with code "));
     Serial.println(error.c_str());
   }
-  // serializeJsonPretty(doc, Serial); // TODO : delete it only to getconfig file data
+  serializeJsonPretty(doc, Serial); // TODO : delete it only to getconfig file data
 #endif
   configFile.close();
 
-  // configFile is closed after reading data into doc , now updating the data;
-
-  File configFile_w = fileSystem->open(filename, "w+"); // TODO: w or w+ ?
-  if (!configFile_w)
-  {
-#ifdef DEBUG_AMOR
-    Serial.println(F("Failed to open config file"));
-#endif
-    return false;
-  }
-
-  size = configFile_w.size();
-#ifdef DEBUG_AMOR
-  Serial.print(F("Config file size write ="));
-  Serial.println(size);
-#endif
-
-  if (size > 1024 * 3)
-  {
-#ifdef DEBUG_AMOR
-    Serial.println(F("Config file size is too large"));
-#endif
-    return false;
-  }
   if (isToDelete)
   {
     if (doc.containsKey(key.c_str()))
@@ -1320,6 +1327,46 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename,
   else
   {
     doc[key.c_str()] = value;
+  }
+
+#ifdef DEBUG_AMOR //
+  Serial.print(F("deserializeJson() After update "));
+  serializeJsonPretty(doc, Serial); // TODO : delete it only to getconfig file data
+#endif
+
+  // configFile is closed after reading data into doc , now updating the data;
+
+  File configFile_w = fileSystem->open(filename, "w"); // TODO: w or w+ ?
+
+  if (!configFile_w)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println(F("Failed to open config file w"));
+#endif
+    configFile_w = fileSystem->open(filename, "w+");
+    if (!configFile_w)
+    {
+#ifdef DEBUG_AMOR
+      Serial.println(F("Failed to open config file in w+"));
+#endif
+
+      return false;
+    }
+  }
+
+  size = configFile_w.size();
+
+#ifdef DEBUG_AMOR
+  Serial.print(F("Config file size write ="));
+  Serial.println(size);
+#endif
+
+  if (size > 1024 * 3)
+  {
+#ifdef DEBUG_AMOR
+    Serial.println(F("Config file size is too large"));
+#endif
+    return false;
   }
 
 // TODO: check wheather it writes to to serial usb port or serially to flash chip
@@ -1573,6 +1620,26 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
   else if (doc["method"] == "list_fs_files_sizes")
   {
     wsReturnStr = list_fs_files_sizes();
+  }
+  else if (doc["method"] == "update_x_min_on_value")
+  {
+    update_x_min_on_value((int)doc["x"]);
+  }
+  else if (doc["method"] == "update_groupId")
+  {
+    update_groupId(doc["gID"]);
+  }
+   else if (doc["method"] == "updatetoConfigJSON")
+  {
+    String key = doc["key"];
+    String value = doc["value"];
+    bool ok = updatetoConfigJSON(key,value);
+#ifdef DEBUG_AMOR
+    Serial.println(F("updatetoConfigJSON ok >"));
+    Serial.println(ok);
+#endif
+
+    wsReturnStr = ok?"ok updated":"not updated";
   }
   else
   {
@@ -3048,6 +3115,8 @@ void setup_config_vars()
   deviceId = readFromConfigJSON("device_id");
   groupId = readFromConfigJSON("groupId");
   readFromConfigJSON("AWS_endpoint").toCharArray(AWS_endpoint, 48);
+
+  x_min_on_value = readFromConfigJSON("x_min_on_value").toInt();
   failed_aws_trials_counter_base = readFromConfigJSON("failed_aws_trials_counter_base").toInt();
 
   aws_topic_str = "$aws/things/" + deviceId + "/";
