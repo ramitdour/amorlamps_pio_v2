@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.2"};
 
-// #define DEBUG_AMOR 1 // TODO:comment in productions
+#define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -538,20 +538,19 @@ void update_x_min_on_value(int x)
 
   // Update in config json
   bool ok = updatetoConfigJSON("x_min_on_value", String(x));
+  
+  #ifdef DEBUG_AMOR
   if (ok)
   {
-#ifdef DEBUG_AMOR
     Serial.println(F("update_x_min_on_value"));
     Serial.println(readFromConfigJSON("x_min_on_value"));
-#endif
   }
   else
   {
-#ifdef DEBUG_AMOR
     Serial.println(F("FAILED x_min_on_value"));
     Serial.println(readFromConfigJSON("x_min_on_value"));
-#endif
   }
+  #endif
 }
 
 void update_groupId(String gID)
@@ -1288,8 +1287,8 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename,
 
   // configFile is closed after reading data into doc , now updating the data;
 
-  configFile = fileSystem->open(filename, "w+"); // TODO: w or w+ ?
-  if (!configFile)
+  File configFile_w = fileSystem->open(filename, "w+"); // TODO: w or w+ ?
+  if (!configFile_w)
   {
 #ifdef DEBUG_AMOR
     Serial.println(F("Failed to open config file"));
@@ -1297,7 +1296,7 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename,
     return false;
   }
 
-  size = configFile.size();
+  size = configFile_w.size();
 #ifdef DEBUG_AMOR
   Serial.print(F("Config file size write ="));
   Serial.println(size);
@@ -1326,11 +1325,12 @@ bool updateto_givenfile_ConfigJSON(String &key, String &value, String &filename,
 // TODO: check wheather it writes to to serial usb port or serially to flash chip
 #ifdef DEBUG_AMOR
   Serial.println(F("serializeJson(doc, configFile);"));
+  printHeap();
 #endif
 
-  serializeJson(doc, configFile);
+  serializeJson(doc, configFile_w);
 
-  configFile.close();
+  configFile_w.close();
 
   return true;
 }
