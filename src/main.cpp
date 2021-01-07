@@ -56,9 +56,9 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"1.1"};
+const String FirmwareVer = {"1.2"};
 
-#define DEBUG_AMOR 1 // TODO:comment in productions
+// #define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -3242,7 +3242,7 @@ void myIRS1_method()
   // printHeap();
 
   tickWifiManagerLed();
-  download_file_to_fs();
+  // download_file_to_fs();
 }
 
 void disable_touch_for_x_ms(uint16_t x)
