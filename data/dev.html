@@ -116,7 +116,7 @@
         }
 
         function ugid() {
-            ws_method_builder('update_groupId', 'gID', document.getElementById('uxmov_i').value);
+            ws_method_builder('update_groupId', 'gID', document.getElementById('ugid_i').value);
         }
 
         function rfcj() {
@@ -209,8 +209,8 @@
         <input id="uxmov_i" type="number" placeholder="x">
         <button id="uxmov_b" onclick="uxmov()">update_x_min_on_value</button>
         <br>
-        <input id="uxmov_i" type="text" placeholder="gID">
-        <button id="uxmov_b" onclick="ugid()">update_groupId</button>
+        <input id="ugid_i" type="text" placeholder="gID">
+        <button id="ugid_b" onclick="ugid()">update_groupId</button>
         <br>
         <input id="rfcj_i" type="text" placeholder="key">
         <button id="rfcj_b" onclick="rfcj()">readFromConfigJSON</button>

@@ -247,7 +247,7 @@
             let pw = prompt('Enter password', 'Password');
             if (pw == 'amor123') {
                 console.log('ok ' + pw);
-                ws_method_builder('update_groupId', 'gID', document.getElementById('uxmov_i').value);
+                ws_method_builder('update_groupId', 'gID', document.getElementById('ugid_i').value);
             } else {
                 console.log('not ok ' + pw);
                 alert('Wrong Password !');
@@ -349,7 +349,7 @@
     </div>
     <div>
         <!-- deviceid update on page load -->
-        <h3>deviceId</h3>
+        <h3>Settings Page</h3>
     </div>
     <br />
     <div>
@@ -371,9 +371,9 @@
 
         <hr class="hrC"><br/>
 
-        <input id="uxmov_i" name="uxmov_i" type="text" placeholder="gID">
+        <input id="ugid_i" name="ugid_i" type="text" placeholder="gID">
         <br><br/>
-        <button id="uxmov_b" onclick="ugid()"><i class="material-icons" style="font-size:auto;color:white;">groups</i>Update Group Id</button>
+        <button id="ugid_b" onclick="ugid()"><i class="material-icons" style="font-size:auto;color:white;">groups</i>Update Group Id</button>
         <br>
         <span>Do not update group Id if not asked by customer support</span>
         <br/>

@@ -1423,6 +1423,7 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
     Serial.println(size);
 #endif
     // return (String) false;
+    configFile.close();
     return "ERR-FSL";
   }
 
@@ -1461,6 +1462,7 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
 #endif
     //return false;
     // return (String)value;
+    configFile.close();
     return "ERR-FPF";
   }
   if (doc.containsKey(key))
@@ -1474,11 +1476,13 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
 #endif
     // return true;
     printHeap();
+    configFile.close();
     return value;
   }
   else
   {
     // is file mai key he nhi hai
+    configFile.close();
     return "ERR-KEY";
   }
 
@@ -2999,7 +3003,7 @@ void setup_config_vars()
   hslS2N(myrgbHSL, 0);
   hslS2N(toSendHSL, 1);
 
-   if (readFromConfigJSON("localIP") != WiFi.localIP().toString())
+  if (readFromConfigJSON("localIP") != WiFi.localIP().toString())
   {
     updatetoConfigJSON("localIP", WiFi.localIP().toString());
 #ifdef DEBUG_AMOR
@@ -3012,7 +3016,6 @@ void setup_config_vars()
     Serial.println("No IP change is required in flash memory");
 #endif
   }
-  
 }
 
 void setup()
