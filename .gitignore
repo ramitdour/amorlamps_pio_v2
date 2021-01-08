@@ -4,3 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 amorlampvscworkspace.code-workspace
+data/private.der
+data/cert.der

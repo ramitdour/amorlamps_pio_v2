@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.2"};
 
-// #define DEBUG_AMOR 1 // TODO:comment in productions
+#define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -204,7 +204,7 @@ ESP8266WebServer server;
 WebSocketsServer webSocket = WebSocketsServer(81);
 File uploadFile;
 
-char webpage[] PROGMEM = R"=====( hello world webpage!!! )=====";
+char webpage[] PROGMEM = R"=====(ok amor)=====";
 
 // ESP8266HTTPUpdateServer httpUpdater;
 
@@ -865,7 +865,7 @@ void rpc_method_handler(byte *payload, unsigned int length)
   {
     String key = doc["key"];
     String value = doc["value"];
-    bool ok = updatetoConfigJSON(key,value);
+    bool ok = updatetoConfigJSON(key, value);
 #ifdef DEBUG_AMOR
     Serial.println(F("updatetoConfigJSON ok >"));
     Serial.println(ok);
@@ -1629,17 +1629,17 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
   {
     update_groupId(doc["gID"]);
   }
-   else if (doc["method"] == "updatetoConfigJSON")
+  else if (doc["method"] == "updatetoConfigJSON")
   {
     String key = doc["key"];
     String value = doc["value"];
-    bool ok = updatetoConfigJSON(key,value);
+    bool ok = updatetoConfigJSON(key, value);
 #ifdef DEBUG_AMOR
     Serial.println(F("updatetoConfigJSON ok >"));
     Serial.println(ok);
 #endif
 
-    wsReturnStr = ok?"ok updated":"not updated";
+    wsReturnStr = ok ? "ok updated" : "not updated";
   }
   else
   {
@@ -1686,6 +1686,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   else if (type == WStype_CONNECTED)
   {
     webSocket.sendTXT(num, "ok connected", 13);
+#ifdef DEBUG_AMOR
+    Serial.println(F("ok connected"));
+    Serial.println(num);
+#endif
   }
   // else if(type == WStype_DISCONNECTED){
 
@@ -1903,7 +1907,7 @@ void websocket_server_mdns_setup()
   if (WiFi.status() == WL_CONNECTED)
   {
     // server_setup();
-    server.on("/", []() {
+    server.on("/ping", []() {
       server.send_P(200, "text/html", webpage);
     });
 
@@ -1929,6 +1933,7 @@ void websocket_server_mdns_setup()
     // server.serveStatic("/config", LittleFS, "/config.json");
     // server.serveStatic("/dev", LittleFS, "/dev.html");
 
+    server.serveStatic("/", LittleFS, "/index.html");
     server.serveStatic("/index", LittleFS, readFromConfigJSON("s_index").c_str());
     server.serveStatic("/style", LittleFS, readFromConfigJSON("s_style").c_str());
     server.serveStatic("/script", LittleFS, readFromConfigJSON("s_script").c_str());
@@ -2744,7 +2749,7 @@ String gethotspotname()
   hotspotname.concat(mac_add.substring(6, 12));
 
 #ifdef DEBUG_AMOR
-  Serial.print(F("hotspotname> ")); // esp8266_C7E6AA
+  Serial.print(F("hotspotname> ")); // AmorLamp_C7E6AA
   Serial.println(hotspotname);
 #endif
 
@@ -3113,33 +3118,59 @@ void setup_config_vars()
   Serial.println(WiFi.macAddress());
 #endif
   deviceId = readFromConfigJSON("device_id");
+  if (deviceId.startsWith("ERR"))
+  {
+    deviceId = "amorAAA" + gethotspotname().substring(8, 15);
+  }
   groupId = readFromConfigJSON("groupId");
+
   readFromConfigJSON("AWS_endpoint").toCharArray(AWS_endpoint, 48);
 
   x_min_on_value = readFromConfigJSON("x_min_on_value").toInt();
+  if (!(x_min_on_value > 0 && x_min_on_value < 61))
+  {
+    x_min_on_value = 20;
+  }
   failed_aws_trials_counter_base = readFromConfigJSON("failed_aws_trials_counter_base").toInt();
-
+  if (!(failed_aws_trials_counter_base > 0 && failed_aws_trials_counter_base < 10))
+  {
+    failed_aws_trials_counter_base = 4;
+  }
   aws_topic_str = "$aws/things/" + deviceId + "/";
   aws_group_topic_str = "amorgroup/" + groupId + "/";
 
   String myrgbHSL = readFromConfigJSON("myrgbHSL");
   String toSendHSL = readFromConfigJSON("toSendHSL");
 
+  if (myrgbHSL.startsWith("ERR"))
+  {
+    myrgbHSL = "254255123";
+  }
+
+  if (toSendHSL.startsWith("ERR"))
+  {
+    toSendHSL = "254255123";
+  }
+
+
   hslS2N(myrgbHSL, 0);
   hslS2N(toSendHSL, 1);
 
-  if (readFromConfigJSON("localIP") != WiFi.localIP().toString())
+  if (WiFi.status() == WL_CONNECTED)
   {
-    updatetoConfigJSON("localIP", WiFi.localIP().toString());
+    if (readFromConfigJSON("localIP") != WiFi.localIP().toString())
+    {
+      updatetoConfigJSON("localIP", WiFi.localIP().toString());
 #ifdef DEBUG_AMOR
-    Serial.println(" YES IP change is required in flash memory");
+      Serial.println(" YES IP change is required in flash memory");
 #endif
-  }
-  else
-  {
+    }
+    else
+    {
 #ifdef DEBUG_AMOR
-    Serial.println("No IP change is required in flash memory");
+      Serial.println("No IP change is required in flash memory");
 #endif
+    }
   }
 }
 
@@ -3237,9 +3268,14 @@ void setup()
   Serial.println(F("getBufferSize END"));
   Serial.println(clientPubSub.getBufferSize());
 #endif
-
-  clientPubSub.setBufferSize(readFromConfigJSON("clientPubSub_buff_size").toInt());
+  int buffer_size = readFromConfigJSON("clientPubSub_buff_size").toInt();
+  if (!(buffer_size > 0 && buffer_size < 2048))
+  {
+    buffer_size = 512;
+  }
+  clientPubSub.setBufferSize(buffer_size);
   // setup_mDNS(); already done above
+  
 
 #ifdef DEBUG_AMOR
   Serial.println(F("getBufferSize END"));
