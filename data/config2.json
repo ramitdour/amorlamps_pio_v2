@@ -4,6 +4,7 @@
 
     "debounceDuration": "300",
     "myISR2_flag_counter_cooldown_base": "10",
+    "x_min_on_value": "2",
     "myISR2_flag_counter_cooldown_millis_duration": "5000"
 
 

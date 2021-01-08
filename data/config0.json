@@ -15,12 +15,12 @@
     "clientPubSub_buff_size": "512",
     "failed_aws_trials_counter_base": "5",
 
-    "groupId": "123456",
+    "groupId": "0701202101",
     "localIP": "",
 
     "myrgbHSL": "254255123",
     "toSendHSL": "123255123",
-    "x_min_on_value": "20",
+    "x_min_on_value": "2",
 
     "cert_ca": "/ca.der",
     "cert_cert": "/cert.der",
