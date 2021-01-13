@@ -719,7 +719,7 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
 
         unsigned long current_et = timeClient.getEpochTime();
 
-        if ((unsigned long)doc["et"] + x_min_on_value * 60 > current_et)
+        if ((unsigned long)doc["et"] + (x_min_on_value * 60) > current_et)
         {
           if ((unsigned long)doc["et"] == touchEpoch)
           {
@@ -732,6 +732,7 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
             // new touch or old touch jiska timer over nahi hua
             long timee2 = ((unsigned long)doc["et"] - current_et);
 
+            // if msg recieved i not older than 60 seconds
             if (timee2 > -60 && timee2 <= 0)
             {
               timee2 = 0;
@@ -781,6 +782,12 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
     {
       rpc_method_handler(payload, length);
     }
+  }
+  //$aws/things/amorAAA_123ABC/shadows
+  else if (topicStr.startsWith("$aws/things/"+deviceId+"/shadow"))
+  {
+    //topic is related to shadows
+    // shadow handler
   }
   else if (topicStr.endsWith(""))
   {
@@ -1086,7 +1093,7 @@ void subscribeDeviceTopics()
   Serial.println(aws_group_topic_str);
 #endif
 
-  // TODO: check + or # wild card ?
+  // TODO: check + or # wild card ? ANS: +
   clientPubSub.subscribe((aws_topic_str + "+").c_str());
   clientPubSub.subscribe((aws_group_topic_str + "+").c_str());
 
@@ -2024,6 +2031,8 @@ void delete_file_of_fs(String filename)
       delFlag = true;
       break;
     }
+        // yield();
+
   }
 
   if (delFlag)
@@ -2265,6 +2274,7 @@ void download_file_to_fs()
     {
       break;
     }
+    // yield();
   }
 
   if (!(contentLength > 0))
@@ -2325,6 +2335,8 @@ void download_file_to_fs()
     Serial.print("/");
     Serial.println(contentLength);
     printHeap();
+
+    // yield();
   }
 
   // for (uint8_t i = 10; i < contentLength; i++)
@@ -2630,6 +2642,7 @@ void firmware_update_from_config()
 #endif
       break;
     }
+    // yield();
   }
 
   String payload = espClient.readStringUntil('\n');
@@ -2758,7 +2771,10 @@ String gethotspotname()
 
 //gets called when WiFiManager enters configuration mode
 void configModeCallback(WiFiManager *myWiFiManager)
-{
+{ 
+  leds[NUM_LEDS - 1] = CRGB::Orange;
+  FastLED.show();
+
 #ifdef DEBUG_AMOR
   Serial.println(F("Entered config mode"));
 #endif
@@ -2959,6 +2975,7 @@ String list_fs_files_sizes()
   {
     files_json[str + counter] = dir.fileName() + " " + dir.fileSize();
     counter++;
+    // yield();
   }
   files_json["count"] = counter;
   files_json["FreeSketchSpace"] = ESP.getFreeSketchSpace();
@@ -3023,6 +3040,8 @@ void listAndReadFiles()
       // f2.close();
       // Serial.println(F("LOGS UPDATED"));
     }
+        // yield();
+
   }
   Serial.print(str);
   // fileSystem->end();
@@ -3181,6 +3200,14 @@ void setup()
   Serial.println(F("==DEBUGGING ENABLED=="));
   printHeap();
   Serial.println(F("fileSystem->begin(); START"));
+  Serial.println(F("setup_RGB_leds START"));
+#endif
+
+  setup_RGB_leds();
+
+#ifdef DEBUG_AMOR
+  Serial.println(F("setup_RGB_leds END"));
+  printHeap();
 #endif
 
   fileSystemConfig.setAutoFormat(false);
@@ -3225,21 +3252,21 @@ void setup()
 #ifdef DEBUG_AMOR
   Serial.println(F("readAwsCerts END ,  fileSystem->end();"));
   printHeap();
-  Serial.println(F("setup_ISRs,setup_RGB_leds, wifiManagerSetup START"));
+  Serial.println(F("setup_ISRs, wifiManagerSetup START"));
 #endif
 
   setup_ISRs();
 
   // disable_touch_for_x_ms(1200000);
 
-  setup_RGB_leds();
+  
   // calibrate_setup_touch_sensor();
 
   wifiManagerSetup();
   // digitalWrite(wifiManagerLED, HIGH); // turning off the led after wifi connection
 
 #ifdef DEBUG_AMOR
-  Serial.println(F("setup_ISRs,setup_RGB_leds, wifiManagerSetup END"));
+  Serial.println(F("setup_ISRs, wifiManagerSetup END"));
   printHeap();
   Serial.println(F("void Setup end"));
 #endif
