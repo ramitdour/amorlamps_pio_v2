@@ -784,11 +784,11 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
     }
   }
   //$aws/things/amorAAA_123ABC/shadows
-  else if (topicStr.startsWith("$aws/things/"+deviceId+"/shadow"))
-  {
-    //topic is related to shadows
-    // shadow handler
-  }
+  // else if (topicStr.startsWith("$aws/things/"+deviceId+"/shadow"))
+  // {
+  //   //topic is related to shadows
+  //   // shadow handler
+  // }
   else if (topicStr.endsWith(""))
   {
     // delete if not required in code clean up
