@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.3"};
 
-#define DEBUG_AMOR 1 // TODO:comment in productions
+// #define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -81,7 +81,7 @@ unsigned long myISR2_flag_counter_cooldown_millis = 0;
 
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 // How many leds in your strip?
-#define NUM_LEDS 10 //TODO: check no.s of strips
+#define NUM_LEDS 12 //TODO: check no.s of strips
 // RGB led
 #define DATA_PIN 4 //d2
 // Define the array of leds
