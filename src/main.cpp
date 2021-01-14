@@ -224,7 +224,7 @@ void tick_turn_on_disco_mode_for_x_mins()
     i = 0;
   }
   hue++;
-  for (uint8_t j = 0; j < 10; j++)
+  for (uint8_t j = 0; j < NUM_LEDS; j++)
   {
     /* code */
     leds[j].setHSV((uint8_t)(hue - (j * (13))), 255, 255);
