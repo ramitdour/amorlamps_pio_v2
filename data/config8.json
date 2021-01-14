@@ -1,3 +1,4 @@
 {
-    "config_file": "config8.json"
+    "config_file": "config8.json",
+    "firstboot": "true"
 }
