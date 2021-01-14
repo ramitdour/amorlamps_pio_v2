@@ -8,11 +8,11 @@
     "s_config": "/config.json",
     "s_dev": "/dev.html",
 
-    "firstboot": "true",
+
 
     "AWS_endpoint": "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com",
     "AWS_endpoint_new": "a3an4l5rg1sm5p-ats.iot.ap-south-1.amazonaws.com",
-    "clientPubSub_buff_size": "512",
+    "clientPubSub_buff_size": "1024",
     "failed_aws_trials_counter_base": "5",
 
     "groupId": "0701202101",
