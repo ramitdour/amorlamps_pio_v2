@@ -71,6 +71,12 @@ void websocket_server_mdns_setup();
 
 void readAwsCerts();
 void publish_boot_data();
+
+void getDeviceShadow();
+void updateDeviceShadow(String shadowMsg);
+void subscribeDeviceShadow();
+
+void subscribeDeviceTopic_group();
 void subscribeDeviceTopics();
 
 String list_fs_files_sizes();
@@ -91,6 +97,9 @@ void send_given_msg_to_given_topic(String topic ,String msg );
 
 void reconnect_aws();
 void aws_callback(char *topic, byte *payload, unsigned int length);
+
+void  get_accepted_shadow_handler(byte *payload, unsigned int length);
+void update_delta_shadow_handler(byte *payload, unsigned int length);
 void rpc_method_handler(byte *payload, unsigned int length);
 
 

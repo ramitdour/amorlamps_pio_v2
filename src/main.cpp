@@ -56,9 +56,9 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"1.3"};
+const String FirmwareVer = {"1.5"};
 
-// #define DEBUG_AMOR 1 // TODO:comment in productions
+#define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -86,6 +86,8 @@ unsigned long myISR2_flag_counter_cooldown_millis = 0;
 #define DATA_PIN 4 //d2
 // Define the array of leds
 CRGB leds[NUM_LEDS];
+
+// bool updateDeviceShadow_toSendHSL_flag = false;
 
 uint8_t my_rgb_hsv_values[3] = {65, 255, 0};
 uint8_t tosend_rgb_hsv_values[3] = {100, 255, 0};
@@ -523,7 +525,8 @@ void update_tosend_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
   tosend_rgb_hsv_values[0] = h;
   tosend_rgb_hsv_values[1] = s;
 
-  updatetoConfigJSON("toSendHSL", hslN2S(h, s, v)); // TODO: to comment or update shadow?
+  //updatetoConfigJSON("toSendHSL", hslN2S(h, s, v)); // TODO: to comment or update shadow?
+  updateDeviceShadow("\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\"");
 
 #ifdef DEBUG_AMOR
   Serial.println(F("Updated HSV to send hsv"));
@@ -537,7 +540,10 @@ void update_x_min_on_value(int x)
   x_min_on_value = x;
 
   // Update in config json
-  bool ok = updatetoConfigJSON("x_min_on_value", String(x));
+
+  updateDeviceShadow("\"x_min_on_value\":\"" + (String)x_min_on_value + "\"");
+
+  bool ok = true; //updatetoConfigJSON("x_min_on_value", String(x));
 
 #ifdef DEBUG_AMOR
   if (ok)
@@ -564,7 +570,9 @@ void update_groupId(String gID)
 
   // groupId = gID;
   // Update in config json
-  bool ok = updatetoConfigJSON("groupId", gID);
+
+  updateDeviceShadow("\"groupId\":\"" + groupId + "\"");
+  bool ok = true; //updatetoConfigJSON("groupId", gID);
   if (ok)
   {
 #ifdef DEBUG_AMOR
@@ -581,7 +589,8 @@ void update_groupId(String gID)
   }
 
   delay(1000);
-  ESP.restart();
+  // ESP.restart();
+  restart_device();
 }
 
 void method_handler(methodCode mc, int args, bool plus1arg, uint8_t s, uint8_t v)
@@ -683,12 +692,15 @@ void hslS2N(String mystr, uint8_t isToSendv)
 
 void aws_callback(char *topic, byte *payload, unsigned int length)
 {
-#ifdef DEBUG_AMOR
-  Serial.println(F("aws_callback"));
-  printHeap();
-#endif
 
   String topicStr = topic;
+
+#ifdef DEBUG_AMOR
+  Serial.println(F("aws_callback"));
+  Serial.println(topicStr);
+  printHeap();
+
+#endif
 
   if (topicStr.startsWith("amorgroup"))
   {
@@ -782,13 +794,54 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
     {
       rpc_method_handler(payload, length);
     }
+    //$aws/things/amorAAA_123ABC/shadows
+    else if (topicStr.startsWith("$aws/things/" + deviceId + "/shadow"))
+    {
+//topic is related to shadows
+// shadow handler
+#ifdef DEBUG_AMOR
+      Serial.println(F("Shadow payload"));
+#endif
+
+      if (topicStr.endsWith("get/accepted"))
+      {
+        get_accepted_shadow_handler(payload, length);
+      }
+      else if (topicStr.endsWith("update/delta"))
+      {
+        update_delta_shadow_handler(payload, length);
+      }
+      //     else if (topicStr.endsWith("get/rejected"))
+      //     {
+      // #ifdef DEBUG_AMOR
+      //       Serial.println(F("get/rejected"));
+      // #endif
+      //     }
+      //     else if (topicStr.endsWith("update/rejected"))
+      //     {
+      // #ifdef DEBUG_AMOR
+      //       Serial.println(F("update/rejected"));
+      // #endif
+      //     }
+      else
+      {
+#ifdef DEBUG_AMOR
+        Serial.println(F("Shadow payload"));
+        Serial.println(topicStr);
+
+        for (int i = 0; i < length; i++)
+        {
+          Serial.print((char)payload[i]);
+        }
+
+#endif
+      }
+
+#ifdef DEBUG_AMOR
+      Serial.println(F("Shadow payload END"));
+#endif
+    }
   }
-  //$aws/things/amorAAA_123ABC/shadows
-  // else if (topicStr.startsWith("$aws/things/"+deviceId+"/shadow"))
-  // {
-  //   //topic is related to shadows
-  //   // shadow handler
-  // }
   else if (topicStr.endsWith(""))
   {
     // delete if not required in code clean up
@@ -796,7 +849,70 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
   else
   {
     // delete if not required in code clean up
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println(F("Some topic"));
+    Serial.println(topicStr);
+#endif
   }
+}
+
+void get_accepted_shadow_handler(byte *payload, unsigned int length)
+{
+#ifdef DEBUG_AMOR
+  Serial.println(F("get_accepted_shadow_handler method"));
+  printHeap();
+#endif
+
+  StaticJsonDocument<512> doc;
+  // Serial to JSON
+  StaticJsonDocument<256> filter;
+
+  // filter["state"]["reported"]["toSendHSL"] = true;
+  // filter["state"]["reported"]["groupId"] = true;
+  // filter["state"]["reported"]["x_min_on_value"] = true;
+
+  filter["state"]["reported"] = true;
+
+  deserializeJson(doc, payload, DeserializationOption::Filter(filter));
+
+  if (doc["state"]["reported"].containsKey("toSendHSL"))
+  {
+    hslS2N(doc["state"]["reported"]["toSendHSL"], 1);
+  }
+
+  if (doc["state"]["reported"].containsKey("x_min_on_value"))
+  {
+    x_min_on_value = (int)doc["state"]["reported"]["x_min_on_value"];
+  }
+
+  if (doc["state"]["reported"].containsKey("groupId"))
+  {
+    groupId = doc["state"]["reported"]["groupId"].as<String>();
+    aws_group_topic_str = "amorgroup/" + groupId + "/";
+  }
+
+#ifdef DEBUG_AMOR
+  Serial.println(F("get_accepted_shadow_handler method"));
+  printHeap();
+  serializeJson(doc, Serial);
+#endif
+
+  // now subscribe group topics and publish aws data
+  subscribeDeviceTopic_group();
+  publish_boot_data();
+
+};
+
+void update_delta_shadow_handler(byte *payload, unsigned int length)
+{
+#ifdef DEBUG_AMOR
+  Serial.println(F("update_delta_shadow_handler method"));
+  for (int i = 0; i < length; i++)
+  {
+    Serial.print((char)payload[i]);
+  }
+#endif
 }
 
 // method flags /enum
@@ -1056,6 +1172,17 @@ void publish_boot_data()
   printHeap();
 #endif
 
+  if (readFromConfigJSON("firstboot") == "true")
+  {
+    updateDeviceShadow("\"deviceId\": \"" + deviceId + "\",\"mac\":\"" + WiFi.macAddress() + "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\",\"groupId\":\"" + groupId + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"x_min_on_value\":\"" + x_min_on_value + "\"");
+    updatetoConfigJSON("firstboot", "false");
+
+#ifdef DEBUG_AMOR
+    Serial.println(F(" updatetoConfigJSON('firstboot', 'false')"));
+    printHeap();
+#endif
+  }
+
   unsigned long et = timeClient.getEpochTime();
 
   struct tm *ptm = gmtime((time_t *)&et);
@@ -1084,6 +1211,63 @@ void publish_boot_data()
 #endif
 }
 
+void getDeviceShadow()
+{
+  clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/get").c_str(), "{}");
+}
+
+// void gId_or_ON_time_updateDeviceShadow()
+// {
+//   String shadowMsg = "{\"state\": {\"reported\": {\"groupId\":\"" + groupId + "\",\"x_min_on_value\":\"" + x_min_on_value + "\"}}}";
+//   bool ok = clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/update").c_str(), shadowMsg.c_str());
+
+// }
+
+// void toSendHSL_updateDeviceShadow()
+// {
+//   String shadowMsg = "{\"state\": {\"reported\": {\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\"}}}";
+//   bool ok = clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/update").c_str(), shadowMsg.c_str());
+// }
+
+// void updateDeviceShadow()
+// {
+//   String shadowMsg = "{\"state\": {\"reported\": {\"deviceId\": \"" + deviceId + "\",\"mac\":\"" + WiFi.macAddress() + "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\",\"groupId\":\"" + groupId + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"x_min_on_value\":\"" + x_min_on_value + "\"}}}";
+//   bool ok = clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/update").c_str(), shadowMsg.c_str());
+// }
+
+void updateDeviceShadow(String shadowMsg)
+{
+  //\"deviceId\": \"" + deviceId + "\",\"mac\":\"" + WiFi.macAddress() + "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\",\"groupId\":\"" + groupId + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"x_min_on_value\":\"" + x_min_on_value + "\"
+  // String shadowMsg = "{\"state\": {\"reported\": {" + shadowMsg + "}}}";
+  bool ok = clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/update").c_str(), ("{\"state\": {\"reported\": {" + shadowMsg + "}}}").c_str());
+#ifdef DEBUG_AMOR
+  printHeap();
+  ok ? Serial.println(F("ok 1 updateDeviceShadow()")) : Serial.println(F("not ok 0 updateDeviceShadow()"));
+#endif
+}
+
+void subscribeDeviceShadow()
+{
+  clientPubSub.subscribe(("$aws/things/" + deviceId + "/shadow/name/configShadow/update/+").c_str());
+  clientPubSub.subscribe(("$aws/things/" + deviceId + "/shadow/name/configShadow/get/+").c_str());
+}
+
+void subscribeDeviceTopic_group()
+{
+#ifdef DEBUG_AMOR
+  printHeap();
+  Serial.println(F("subscribeDeviceTopic_group()"));
+  Serial.println("amorgroup/" + groupId + "/+");
+#endif
+
+  clientPubSub.subscribe(("amorgroup/" + groupId + "/+").c_str());
+
+#ifdef DEBUG_AMOR
+  Serial.println(F("subscribeDeviceTopic_group() DONEE ..."));
+  printHeap();
+#endif
+}
+
 void subscribeDeviceTopics()
 {
 #ifdef DEBUG_AMOR
@@ -1095,12 +1279,12 @@ void subscribeDeviceTopics()
 
   // TODO: check + or # wild card ? ANS: +
   clientPubSub.subscribe((aws_topic_str + "+").c_str());
-  clientPubSub.subscribe((aws_group_topic_str + "+").c_str());
+  // clientPubSub.subscribe((aws_group_topic_str + "+").c_str());
 
   // send_responseToAWS(deviceId + " = " + readFromConfigJSON("localIP"));
 
 #ifdef DEBUG_AMOR
-  Serial.println(F("subscribeDeviceTopics() DONEE ..."));
+  Serial.println(F("^ old subscribeDeviceTopics() DONEE ..."));
   printHeap();
 #endif
 }
@@ -2031,8 +2215,7 @@ void delete_file_of_fs(String filename)
       delFlag = true;
       break;
     }
-        // yield();
-
+    // yield();
   }
 
   if (delFlag)
@@ -2771,7 +2954,7 @@ String gethotspotname()
 
 //gets called when WiFiManager enters configuration mode
 void configModeCallback(WiFiManager *myWiFiManager)
-{ 
+{
   leds[NUM_LEDS - 1] = CRGB::Orange;
   FastLED.show();
 
@@ -3040,8 +3223,7 @@ void listAndReadFiles()
       // f2.close();
       // Serial.println(F("LOGS UPDATED"));
     }
-        // yield();
-
+    // yield();
   }
   Serial.print(str);
   // fileSystem->end();
@@ -3171,26 +3353,25 @@ void setup_config_vars()
     toSendHSL = "254255123";
   }
 
-
   hslS2N(myrgbHSL, 0);
   hslS2N(toSendHSL, 1);
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    if (readFromConfigJSON("localIP") != WiFi.localIP().toString())
-    {
-      updatetoConfigJSON("localIP", WiFi.localIP().toString());
-#ifdef DEBUG_AMOR
-      Serial.println(" YES IP change is required in flash memory");
-#endif
-    }
-    else
-    {
-#ifdef DEBUG_AMOR
-      Serial.println("No IP change is required in flash memory");
-#endif
-    }
-  }
+  //   if (WiFi.status() == WL_CONNECTED)
+  //   {
+  //     if (readFromConfigJSON("localIP") != WiFi.localIP().toString())
+  //     {
+  //       updatetoConfigJSON("localIP", WiFi.localIP().toString());
+  // #ifdef DEBUG_AMOR
+  //       Serial.println(" YES IP change is required in flash memory");
+  // #endif
+  //     }
+  //     else
+  //     {
+  // #ifdef DEBUG_AMOR
+  //       Serial.println("No IP change is required in flash memory");
+  // #endif
+  //     }
+  //   }
 }
 
 void setup()
@@ -3259,7 +3440,6 @@ void setup()
 
   // disable_touch_for_x_ms(1200000);
 
-  
   // calibrate_setup_touch_sensor();
 
   wifiManagerSetup();
@@ -3296,13 +3476,12 @@ void setup()
   Serial.println(clientPubSub.getBufferSize());
 #endif
   int buffer_size = readFromConfigJSON("clientPubSub_buff_size").toInt();
-  if (!(buffer_size > 0 && buffer_size < 2048))
+  if (!(buffer_size > 0 && buffer_size < 16384))
   {
     buffer_size = 512;
   }
   clientPubSub.setBufferSize(buffer_size);
   // setup_mDNS(); already done above
-  
 
 #ifdef DEBUG_AMOR
   Serial.println(F("getBufferSize END"));
@@ -3620,21 +3799,33 @@ void reconnect_aws()
         Serial.println(F("publish_boot_data START"));
 #endif
 
-        publish_boot_data();
+        // publish_boot_data();
 
 #ifdef DEBUG_AMOR
         Serial.println(F("publish_boot_data END"));
         printHeap();
-        Serial.println(F("subscribeDeviceTopics START"));
+        Serial.println(F("subscribeDeviceTopics&shadows START"));
 #endif
 
         subscribeDeviceTopics();
+        subscribeDeviceShadow();
 
 #ifdef DEBUG_AMOR
         Serial.println(F("subscribeDeviceShadow END"));
         printHeap();
         Serial.println(F("subscribeDeviceShadow START"));
 #endif
+
+        getDeviceShadow();
+
+#ifdef DEBUG_AMOR
+        Serial.println(F("getDeviceShadow temp end"));
+        printHeap();
+        Serial.println(F("publish_boot_data temp START"));
+#endif
+
+        // subscribeDeviceTopic_group();
+        // publish_boot_data();
 
 #ifdef DEBUG_AMOR
         printHeap();
