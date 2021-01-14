@@ -1,0 +1,13 @@
+{
+  "method": "blinkNtimes" , "args":{"n":10}
+}
+
+{
+  "method": "fadeinoutNtimes" , "args":{"n":4}
+}
+
+{
+  "method": "onForXmins" , "args":{"x":10}
+}
+
+$aws/things/esp8266_C7ED21/rpc
