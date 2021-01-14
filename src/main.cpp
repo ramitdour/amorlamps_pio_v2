@@ -3493,8 +3493,10 @@ void setup()
   int buffer_size = readFromConfigJSON("clientPubSub_buff_size").toInt();
   if (!(buffer_size > 0 && buffer_size < 16384))
   {
-    buffer_size = 512;
+    buffer_size = 1024;
   }
+  espClient.setBufferSizes(2048,1024); // TODO: this increased the avaliavle heap from 4k to 17k, but why and how ?
+
   clientPubSub.setBufferSize(buffer_size);
   // setup_mDNS(); already done above
 
