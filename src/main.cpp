@@ -568,10 +568,10 @@ void update_groupId(String gID)
   Serial.println(gID);
 #endif
 
-  // groupId = gID;
+  groupId = gID;
   // Update in config json
 
-  updateDeviceShadow("\"groupId\":\"" + groupId + "\"");
+  updateDeviceShadow("\"groupId\":\"" + gID + "\"");
   bool ok = true; //updatetoConfigJSON("groupId", gID);
   if (ok)
   {
@@ -698,6 +698,8 @@ void aws_callback(char *topic, byte *payload, unsigned int length)
 #ifdef DEBUG_AMOR
   Serial.println(F("aws_callback"));
   Serial.println(topicStr);
+  Serial.print(F("payload  length>"));
+  Serial.println(length);
   printHeap();
 
 #endif
@@ -901,7 +903,6 @@ void get_accepted_shadow_handler(byte *payload, unsigned int length)
   // now subscribe group topics and publish aws data
   subscribeDeviceTopic_group();
   publish_boot_data();
-
 }
 
 void update_delta_shadow_handler(byte *payload, unsigned int length)
@@ -1172,19 +1173,18 @@ void publish_boot_data()
   printHeap();
 #endif
 
+  /*publish kaise he karega jab shadow data wahan hai he nhi*/
 
-/*publish kaise he karega jab shadow data wahan hai he nhi*/
+  //   if (readFromConfigJSON("firstboot") == "true")
+  //   {
+  //     updateDeviceShadow("\"deviceId\": \"" + deviceId + "\",\"mac\":\"" + WiFi.macAddress() + "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\",\"groupId\":\"" + groupId + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"x_min_on_value\":\"" + x_min_on_value + "\"");
+  //     updatetoConfigJSON("firstboot", "false");
 
-//   if (readFromConfigJSON("firstboot") == "true")
-//   {
-//     updateDeviceShadow("\"deviceId\": \"" + deviceId + "\",\"mac\":\"" + WiFi.macAddress() + "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\",\"groupId\":\"" + groupId + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"x_min_on_value\":\"" + x_min_on_value + "\"");
-//     updatetoConfigJSON("firstboot", "false");
-
-// #ifdef DEBUG_AMOR
-//     Serial.println(F(" updatetoConfigJSON('firstboot', 'false')"));
-//     printHeap();
-// #endif
-//   }
+  // #ifdef DEBUG_AMOR
+  //     Serial.println(F(" updatetoConfigJSON('firstboot', 'false')"));
+  //     printHeap();
+  // #endif
+  //   }
 
   unsigned long et = timeClient.getEpochTime();
 
@@ -1215,7 +1215,7 @@ void publish_boot_data()
 }
 
 void getDeviceShadow()
-{ 
+{
   // if first boot thenfirst create shadow than update
   if (readFromConfigJSON("firstboot") == "true")
   {
