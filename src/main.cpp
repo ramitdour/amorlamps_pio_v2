@@ -2783,7 +2783,7 @@ void firmware_update_from_config()
 
 #ifdef DEBUG_AMOR
   Serial.println(F("~PubSubClient"));
-printHeap();
+  printHeap();
 #endif
 
   // BearSSL::CertStore certStore;
