@@ -3497,7 +3497,7 @@ void setup()
   {
     buffer_size = 1024;
   }
-  espClient.setBufferSizes(2048,1024); // TODO: this increased the avaliavle heap from 4k to 17k, but why and how ?
+  espClient.setBufferSizes(2048, 1024); // TODO: this increased the avaliavle heap from 4k to 17k, but why and how ?
 
   clientPubSub.setBufferSize(buffer_size);
   // setup_mDNS(); already done above
@@ -3767,6 +3767,10 @@ void reconnect_aws()
 
       leds[NUM_LEDS - 1] = CRGB::MediumVioletRed;
       FastLED.show();
+
+      if(recon_aws_count > 150){
+        restart_device();
+      }
 
 #ifdef DEBUG_AMOR
       // Serial.print(clientPubSub_connected_counter);
