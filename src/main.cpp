@@ -1315,6 +1315,7 @@ void readAwsCerts()
 #endif
 
   leds[NUM_LEDS - 1] = CRGB::Violet;
+  leds[ 1] = CRGB::Violet;
   FastLED.show();
 
   // TODO:verify that weather closing the opened file later on makes any difference
@@ -2973,6 +2974,7 @@ String gethotspotname()
 void configModeCallback(WiFiManager *myWiFiManager)
 {
   leds[NUM_LEDS - 1] = CRGB::Orange;
+  leds[ 1] = CRGB::Orange;
   FastLED.show();
 
 #ifdef DEBUG_AMOR
@@ -3015,6 +3017,7 @@ void wifiManagerSetup()
 #endif
 
   leds[NUM_LEDS - 1] = CRGB::Blue;
+  leds[1] = CRGB::Blue;
   FastLED.show();
   // Not Required - only for advance testing purpose
   // WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
@@ -3104,6 +3107,7 @@ void wifiManagerSetup()
 
   // setup_mDNS();
   leds[NUM_LEDS - 1] = CRGB::Yellow;
+  leds[ 1] = CRGB::Yellow;
   FastLED.show();
 }
 
@@ -3112,6 +3116,7 @@ void setup_RGB_leds()
   FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
 
   leds[NUM_LEDS - 1] = CRGB::Red;
+  leds[ 1] = CRGB::Red;
 
   FastLED.show();
 }
@@ -3638,6 +3643,7 @@ void restart_device()
   Serial.println(F(" !!! RESTARTING ESP !!!"));
 #endif
   leds[NUM_LEDS - 1] = CRGB::Red;
+  leds[ 1] = CRGB::Red;
   FastLED.show();
   delay(1000);
   ESP.restart(); //TODO: restart or reset the device ?
@@ -3766,6 +3772,7 @@ void reconnect_aws()
       recon_aws_count++;
 
       leds[NUM_LEDS - 1] = CRGB::MediumVioletRed;
+      leds[ 1] = CRGB::MediumVioletRed;
       FastLED.show();
 
       if(recon_aws_count > 150){
@@ -3856,10 +3863,13 @@ void reconnect_aws()
         Serial.println(millis());
 #endif
         leds[NUM_LEDS - 1] = CRGB::Green;
+        leds[ 1] = CRGB::Green;
+
         FastLED.show();
         delay(1000);
 
         leds[NUM_LEDS - 1] = CRGB::Black;
+        leds[ 1] = CRGB::Black;
         FastLED.show();
 
         disable_touch_for_x_ms(200);
