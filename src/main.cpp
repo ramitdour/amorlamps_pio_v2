@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.5"};
 
-#define DEBUG_AMOR 1 // TODO:comment in productions
+// #define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -1263,7 +1263,9 @@ void updateDeviceShadow(String shadowMsg)
 
 void subscribeDeviceShadow()
 {
-  clientPubSub.subscribe(("$aws/things/" + deviceId + "/shadow/name/configShadow/update/+").c_str());
+  clientPubSub.subscribe(("$aws/things/" + deviceId + "/shadow/name/configShadow/update/rejected").c_str());
+  clientPubSub.subscribe(("$aws/things/" + deviceId + "/shadow/name/configShadow/update/delta").c_str());
+
   clientPubSub.subscribe(("$aws/things/" + deviceId + "/shadow/name/configShadow/get/+").c_str());
 }
 
