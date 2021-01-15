@@ -58,7 +58,7 @@ bool isToDeleteupdatetoConfigJSONflag = false;
 // # define Serial.printf "Serial.println"
 const String FirmwareVer = {"1.6"};
 
-#define DEBUG_AMOR 1 // TODO:comment in productions
+// #define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -3065,8 +3065,39 @@ String gethotspotname()
 //gets called when WiFiManager enters configuration mode
 void configModeCallback(WiFiManager *myWiFiManager)
 {
-  leds[NUM_LEDS - 1] = CRGB::Orange;
-  leds[1] = CRGB::Orange;
+
+  // Alternate coloring 
+  // for (size_t i = 0; i < NUM_LEDS; i++)
+  // {
+  //   if (i%2 == 0)
+  //   {
+  //     leds[i] = CRGB::Red;
+  //   }
+  //   else
+  //   {
+  //     leds[i] = CRGB::Green;
+  //   }
+  //   FastLED.show();
+  // }
+
+
+// 1/2 coloring
+    for (size_t i = 0; i < NUM_LEDS; i++)
+  {
+    if (i < (NUM_LEDS/2))
+    {
+      leds[i] = CRGB::Red;
+    }
+    else
+    {
+      leds[i] = CRGB::Green;
+    }
+    FastLED.show();
+  }
+
+  // leds[NUM_LEDS - 1] = CRGB::Orange;
+  // leds[NUM_LEDS/2] = CRGB::Green;
+  // leds[1] = CRGB::Orange;
   FastLED.show();
 
 #ifdef DEBUG_AMOR
