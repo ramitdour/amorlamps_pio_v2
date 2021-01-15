@@ -56,9 +56,9 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"1.5"};
+const String FirmwareVer = {"1.6"};
 
-// #define DEBUG_AMOR 1 // TODO:comment in productions
+#define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -1315,7 +1315,7 @@ void readAwsCerts()
 #endif
 
   leds[NUM_LEDS - 1] = CRGB::Violet;
-  leds[ 1] = CRGB::Violet;
+  leds[1] = CRGB::Violet;
   FastLED.show();
 
   // TODO:verify that weather closing the opened file later on makes any difference
@@ -1694,17 +1694,18 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
   // buffer to be mutable. If you don't use ArduinoJson, you may as well
   // use configFile.readString instead.
   configFile.readBytes(buf.get(), size);
-  printHeap();
+
+  // printHeap();
 
   StaticJsonDocument<512> doc;
 
   StaticJsonDocument<256> filter;
 
-  printHeap();
+  // printHeap();
   filter[key] = true;
   auto error = deserializeJson(doc, buf.get(), DeserializationOption::Filter(filter));
 
-  printHeap();
+  // printHeap();
 
   // auto error = deserializeJson(doc, buf.get());
 
@@ -1733,9 +1734,10 @@ String readFrom_given_ConfigJSON(String &key, String &filename)
     Serial.print(key);
     Serial.print(F(":"));
     Serial.println(value);
-#endif
+    // #endif
     // return true;
     printHeap();
+#endif
     configFile.close();
     return value;
   }
@@ -1926,7 +1928,10 @@ void replyOKWithMsg(String msg)
 
 void replyServerError(String msg)
 {
+#ifdef DEBUG_AMOR
   Serial.println(msg);
+#endif
+
   server.send(500, FPSTR("text/plain"), msg + "\r\n");
 }
 
@@ -1936,21 +1941,31 @@ void replyServerError(String msg)
 
 void handleFileUpload()
 {
+#ifdef DEBUG_AMOR
   Serial.println(F("handleFileUpload() START"));
   printHeap();
+#endif
 
   String path = server.uri();
+
+#ifdef DEBUG_AMOR
   Serial.println(String("handleFileRead: ") + path);
+#endif
 
   if (!fsOK)
   {
+#ifdef DEBUG_AMOR
     Serial.println(F("error in opening FS"));
+#endif
+
     return replyServerError(FPSTR("FS_INIT_ERROR"));
   }
 
   if (server.uri() != "/fsupload")
   {
+#ifdef DEBUG_AMOR
     Serial.println(F("path not ends with /fsupload"));
+#endif
     return;
   }
 
@@ -1967,45 +1982,66 @@ void handleFileUpload()
       filename = "/" + filename;
     }
 
+#ifdef DEBUG_AMOR
     Serial.println(String("handleFileUpload Name: ") + filename);
+#endif
 
     uploadFile = fileSystem->open(filename, "w+");
 
     if (!uploadFile)
     {
+#ifdef DEBUG_AMOR
       Serial.println(String(" CREATE FAILED , filename: ") + filename);
+#endif
       return replyServerError(F("CREATE FAILED"));
     }
+
+#ifdef DEBUG_AMOR
     Serial.println(String("Upload: START, filename: ") + filename);
+#endif
   }
   else if (upload.status == UPLOAD_FILE_WRITE)
   {
+#ifdef DEBUG_AMOR
     Serial.println(F("upload.status == UPLOAD_FILE_WRITE"));
+#endif
     if (uploadFile)
     {
       size_t bytesWritten = uploadFile.write(upload.buf, upload.currentSize);
 
+#ifdef DEBUG_AMOR
       Serial.print(F("bytesWritten>>"));
       Serial.println(bytesWritten);
+#endif
 
       if (bytesWritten != upload.currentSize)
       {
+#ifdef DEBUG_AMOR
         Serial.println(F("WRITE FAILED !!!"));
+#endif
         return replyServerError(F("WRITE FAILED"));
       }
     }
+#ifdef DEBUG_AMOR
     Serial.println(String("Upload: WRITE, Bytes: ") + upload.currentSize);
+#endif
   }
   else if (upload.status == UPLOAD_FILE_END)
   {
     if (uploadFile)
     {
       uploadFile.close();
+#ifdef DEBUG_AMOR
       Serial.println(F("uploadFile.close(); PROPERLY"));
+#endif
     }
+#ifdef DEBUG_AMOR
     Serial.println(String("Upload: END/COMPLETED, Size: ") + upload.totalSize);
+#endif
   }
+#ifdef DEBUG_AMOR
   Serial.println(F("handleFileUpload() END"));
+#endif
 }
 
 /*
@@ -2014,11 +2050,16 @@ void handleFileUpload()
 // void handleFileRead(String path)
 void handleFileRead()
 {
+#ifdef DEBUG_AMOR
   Serial.println(F("handleFileRead() START"));
+#endif
 
   String path = server.uri();
+
+#ifdef DEBUG_AMOR
   Serial.println(path);
   Serial.println(String("handleFileRead: ") + path);
+#endif
 
   if (!fsOK)
   {
@@ -2059,10 +2100,14 @@ void handleFileRead()
     File file = fileSystem->open(filename, "r");
     if (server.streamFile(file, contentType) != file.size())
     {
+#ifdef DEBUG_AMOR
       Serial.println(F("Sent less data than expected!"));
+#endif
     }
     file.close();
+#ifdef DEBUG_AMOR
     Serial.println(F(" file.close();"));
+#endif
 
     // return true;
     return;
@@ -2070,12 +2115,16 @@ void handleFileRead()
   // return false;
   replyOKWithMsg("Something is wrong");
 
+#ifdef DEBUG_AMOR
   Serial.println(F("handleFileRead() END"));
+#endif
 }
 
 void handleNotFound()
 {
+#ifdef DEBUG_AMOR
   Serial.println(F("handleNotFound()"));
+#endif
 
   String uri = ESP8266WebServer::urlDecode(server.uri()); // required to read paths with blanks
 
@@ -2102,7 +2151,9 @@ void handleNotFound()
 
     // message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
   }
+#ifdef DEBUG_AMOR
   Serial.println(message);
+#endif
   server.send(404, "text/plain", message);
 }
 
@@ -2262,7 +2313,10 @@ void download_file_to_fs()
 #endif
 
   espClient.stopAll();
+
+#ifdef DEBUG_AMOR
   printHeap();
+#endif
 
   webSocket.~WebSocketsServer();
   clientPubSub.~PubSubClient();
@@ -2270,9 +2324,10 @@ void download_file_to_fs()
   server.~ESP8266WebServerTemplate();
   webSocket.~WebSocketsServer();
 
+#ifdef DEBUG_AMOR
   Serial.println(F("~PubSubClient"));
-
   printHeap();
+#endif
 
   // BearSSL::CertStore certStore;
 
@@ -2319,7 +2374,9 @@ void download_file_to_fs()
       filename.length() < 2 ||
       FirmwareVer.length() < 2)
   {
+#ifdef DEBUG_AMOR
     Serial.println(F("Something is null"));
+#endif
     return;
   }
 
@@ -2449,17 +2506,23 @@ void download_file_to_fs()
   while (espClient.connected())
   {
     String header = espClient.readStringUntil('\n');
+#ifdef DEBUG_AMOR
     Serial.print(F("h..."));
     Serial.println(header);
+#endif
     if (header.startsWith(F("HTTP/1.")))
     {
       httpCode = header.substring(9, 12).toInt();
+#ifdef DEBUG_AMOR
       Serial.print(F("httpCode ..>>"));
       Serial.println(httpCode);
+#endif
 
       if (httpCode != 200)
       {
+#ifdef DEBUG_AMOR
         Serial.println(String(F("HTTP GET code=")) + String(httpCode));
+#endif
         espClient.stop();
         // return -1;
         return;
@@ -2468,8 +2531,10 @@ void download_file_to_fs()
     if (header.startsWith(F("Content-Length: ")))
     {
       contentLength = header.substring(15).toInt();
+#ifdef DEBUG_AMOR
       Serial.print(F("contentLength ..>>"));
       Serial.println(contentLength);
+#endif
     }
     if (header == F("\r"))
     {
@@ -2480,7 +2545,9 @@ void download_file_to_fs()
 
   if (!(contentLength > 0))
   {
+#ifdef DEBUG_AMOR
     Serial.println(F("HTTP content length=0"));
+#endif
     espClient.stop();
     // return -1;
     return;
@@ -2492,7 +2559,9 @@ void download_file_to_fs()
   fs::File f = fileSystem->open(filename, "w+");
   if (!f)
   {
+#ifdef DEBUG_AMOR
     Serial.println(F("file open failed"));
+#endif
     espClient.stop();
     // return -1;
     return;
@@ -2503,9 +2572,11 @@ void download_file_to_fs()
   int received;
   uint8_t buff[256] = {0};
 
+#ifdef DEBUG_AMOR
   Serial.println(F("file opened now  ,writing data"));
   Serial.println(filename);
   Serial.println(remaining);
+#endif
 
   // read all data from server
   while (remaining > 0 && espClient.status() == ESTABLISHED)
@@ -2531,11 +2602,13 @@ void download_file_to_fs()
     //   remaining -= received;
     // }
 
+#ifdef DEBUG_AMOR
     Serial.println("espClient status --- " + String(espClient.status()));
     Serial.print(remaining);
     Serial.print("/");
     Serial.println(contentLength);
     printHeap();
+#endif
 
     // yield();
   }
@@ -2581,7 +2654,11 @@ void download_file_to_fs()
   // }
 
   if (remaining != 0)
+  {
+#ifdef DEBUG_AMOR
     Serial.println(" Not recieved full data remaing =" + String(remaining) + "/" + String(contentLength));
+#endif
+  }
 
   // Close SPIFFS file
   f.close();
@@ -2592,13 +2669,17 @@ void download_file_to_fs()
   // return (remaining == 0 ? contentLength : -1);
   if (remaining == 0)
   {
+#ifdef DEBUG_AMOR
     Serial.println(contentLength);
+#endif
     updatetoConfigJSON("d2fs_finished_flag", "1");
   }
   else
   {
     updatetoConfigJSON("d2fs_finished_flag", "0");
+#ifdef DEBUG_AMOR
     Serial.println(F("--1"));
+#endif
   }
   // return;
 
@@ -2689,7 +2770,10 @@ void firmware_update_from_config()
 
   // espClient.~WiFiClientSecure();
   espClient.stopAll();
+
+#ifdef DEBUG_AMOR
   printHeap();
+#endif
 
   webSocket.~WebSocketsServer();
   clientPubSub.~PubSubClient();
@@ -2697,9 +2781,10 @@ void firmware_update_from_config()
   server.~ESP8266WebServerTemplate();
   webSocket.~WebSocketsServer();
 
+#ifdef DEBUG_AMOR
   Serial.println(F("~PubSubClient"));
-
-  printHeap();
+printHeap();
+#endif
 
   // BearSSL::CertStore certStore;
 
@@ -2724,7 +2809,9 @@ void firmware_update_from_config()
       URL_fw_Version.length() < 2 ||
       FirmwareVer.length() < 2)
   {
+#ifdef DEBUG_AMOR
     Serial.println(F("Something is null"));
+#endif
   }
 
 #ifdef DEBUG_AMOR
@@ -2871,8 +2958,8 @@ void firmware_update_from_config()
 // UPDATE FW
 #ifdef DEBUG_AMOR
     printHeap();
-#endif
     Serial.println(F("New firmware detected"));
+#endif
 
     ESPhttpUpdate.setLedPin(LED_BUILTIN, LOW);
 
@@ -2886,6 +2973,7 @@ void firmware_update_from_config()
     printHeap();
 #endif
 
+#ifdef DEBUG_AMOR
     switch (ret)
     {
     case HTTP_UPDATE_FAILED:
@@ -2900,7 +2988,10 @@ void firmware_update_from_config()
       Serial.println(F("HTTP_UPDATE_OK"));
       break;
     }
+#endif
   }
+
+#ifdef DEBUG_AMOR
   else
   {
     if (currentFW == gotFW)
@@ -2912,6 +3003,7 @@ void firmware_update_from_config()
       Serial.println(F("Device already on latest firmware version got FW is old"));
     }
   }
+#endif
 
   // if(payload.equals(FirmwareVer))
   // {
@@ -2974,7 +3066,7 @@ String gethotspotname()
 void configModeCallback(WiFiManager *myWiFiManager)
 {
   leds[NUM_LEDS - 1] = CRGB::Orange;
-  leds[ 1] = CRGB::Orange;
+  leds[1] = CRGB::Orange;
   FastLED.show();
 
 #ifdef DEBUG_AMOR
@@ -3107,7 +3199,7 @@ void wifiManagerSetup()
 
   // setup_mDNS();
   leds[NUM_LEDS - 1] = CRGB::Yellow;
-  leds[ 1] = CRGB::Yellow;
+  leds[1] = CRGB::Yellow;
   FastLED.show();
 }
 
@@ -3116,7 +3208,7 @@ void setup_RGB_leds()
   FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
 
   leds[NUM_LEDS - 1] = CRGB::Red;
-  leds[ 1] = CRGB::Red;
+  leds[1] = CRGB::Red;
 
   FastLED.show();
 }
@@ -3221,13 +3313,18 @@ void listAndReadFiles()
 
     if (dir.fileName().startsWith("my"))
     {
+#ifdef DEBUG_AMOR
       Serial.println(F("===got my file"));
+#endif
       File f = dir.openFile("r");
-      // Serial.println(f.readString());
+// Serial.println(f.readString());
+#ifdef DEBUG_AMOR
       while (f.available())
       {
+
         Serial.write(f.read());
       }
+#endif
       f.close();
 
       // for LOGGING
@@ -3247,7 +3344,9 @@ void listAndReadFiles()
     }
     // yield();
   }
+#ifdef DEBUG_AMOR
   Serial.print(str);
+#endif
   // fileSystem->end();
 #ifdef DEBUG_AMOR
   Serial.print(F("Free Flash>"));
@@ -3643,7 +3742,7 @@ void restart_device()
   Serial.println(F(" !!! RESTARTING ESP !!!"));
 #endif
   leds[NUM_LEDS - 1] = CRGB::Red;
-  leds[ 1] = CRGB::Red;
+  leds[1] = CRGB::Red;
   FastLED.show();
   delay(1000);
   ESP.restart(); //TODO: restart or reset the device ?
@@ -3772,10 +3871,11 @@ void reconnect_aws()
       recon_aws_count++;
 
       leds[NUM_LEDS - 1] = CRGB::MediumVioletRed;
-      leds[ 1] = CRGB::MediumVioletRed;
+      leds[1] = CRGB::MediumVioletRed;
       FastLED.show();
 
-      if(recon_aws_count > 150){
+      if (recon_aws_count > 150)
+      {
         restart_device();
       }
 
@@ -3863,13 +3963,13 @@ void reconnect_aws()
         Serial.println(millis());
 #endif
         leds[NUM_LEDS - 1] = CRGB::Green;
-        leds[ 1] = CRGB::Green;
+        leds[1] = CRGB::Green;
 
         FastLED.show();
         delay(1000);
 
         leds[NUM_LEDS - 1] = CRGB::Black;
-        leds[ 1] = CRGB::Black;
+        leds[1] = CRGB::Black;
         FastLED.show();
 
         disable_touch_for_x_ms(200);
