@@ -56,9 +56,9 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"1.7"};
+const String FirmwareVer = {"1.8"};
 
-// #define DEBUG_AMOR 1 // TODO:comment in productions
+#define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -93,7 +93,7 @@ uint8_t my_rgb_hsv_values[3] = {65, 255, 0};
 uint8_t tosend_rgb_hsv_values[3] = {100, 255, 0};
 bool update_shadow_tosend_rgb_hsv_flag = false;
 unsigned long update_shadow_tosend_rgb_hsv_last_millis = 0;
-int update_shadow_tosend_rgb_hsv_interval = 10000;
+unsigned int update_shadow_tosend_rgb_hsv_interval = 10000;
 uint8_t current_rgb_hsv_values[3] = {0, 0, 0};
 uint8_t desired_rgb_hsv_values[3] = {0, 0, 0};
 
@@ -1227,6 +1227,10 @@ void publish_boot_data()
 
 void getDeviceShadow()
 {
+  #ifdef DEBUG_AMOR
+    Serial.println(F("getDeviceShadow()"));
+    printHeap();
+#endif
   // if first boot thenfirst create shadow than update
   if (readFromConfigJSON("firstboot") == "true")
   {
@@ -1265,9 +1269,15 @@ void update_shadow_tosend_rgb_hsv()
 {
   if (millis() - update_shadow_tosend_rgb_hsv_last_millis > update_shadow_tosend_rgb_hsv_interval)
   {
+#ifdef DEBUG_AMOR
+    printHeap();
+    Serial.println(F("update_shadow_tosend_rgb_hsv()"));
+    Serial.println(update_shadow_tosend_rgb_hsv_last_millis);
+#endif
+
     update_shadow_tosend_rgb_hsv_flag = false;
-    update_shadow_tosend_rgb_hsv_last_millis = millis();
     updateDeviceShadow("\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\"");
+    update_shadow_tosend_rgb_hsv_last_millis = millis();
   }
 }
 
@@ -1844,6 +1854,7 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
     method_handler(MUTOSENDRGB, (uint8_t)doc["h"], true, (uint8_t)doc["s"], 0);
     method_handler(MBLEDX, 3, true, 1, 0);
     s = "c ok";
+    wsReturnStr = s;
   }
   else if (doc["method"] == "get_ESP_core")
   {
