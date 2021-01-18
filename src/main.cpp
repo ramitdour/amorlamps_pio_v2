@@ -56,7 +56,7 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"1.6"};
+const String FirmwareVer = {"1.7"};
 
 // #define DEBUG_AMOR 1 // TODO:comment in productions
 
@@ -91,7 +91,9 @@ CRGB leds[NUM_LEDS];
 
 uint8_t my_rgb_hsv_values[3] = {65, 255, 0};
 uint8_t tosend_rgb_hsv_values[3] = {100, 255, 0};
-
+bool update_shadow_tosend_rgb_hsv_flag = false;
+unsigned long update_shadow_tosend_rgb_hsv_last_millis = 0;
+int update_shadow_tosend_rgb_hsv_interval = 10000;
 uint8_t current_rgb_hsv_values[3] = {0, 0, 0};
 uint8_t desired_rgb_hsv_values[3] = {0, 0, 0};
 
@@ -526,7 +528,9 @@ void update_tosend_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
   tosend_rgb_hsv_values[1] = s;
 
   //updatetoConfigJSON("toSendHSL", hslN2S(h, s, v)); // TODO: to comment or update shadow?
-  updateDeviceShadow("\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\"");
+  update_shadow_tosend_rgb_hsv_flag = true;
+
+  // updateDeviceShadow("\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\"");
 
 #ifdef DEBUG_AMOR
   Serial.println(F("Updated HSV to send hsv"));
@@ -537,7 +541,14 @@ void update_tosend_rgb_hsv(uint8_t h, uint8_t s, uint8_t v)
 
 void update_x_min_on_value(int x)
 {
-  x_min_on_value = x;
+  if (x_min_on_value > 0 && x_min_on_value < 61)
+  {
+    x_min_on_value = x;
+  }
+  else
+  {
+    x_min_on_value = 5;
+  }
 
   // Update in config json
 
@@ -1250,6 +1261,16 @@ void getDeviceShadow()
 //   bool ok = clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/update").c_str(), shadowMsg.c_str());
 // }
 
+void update_shadow_tosend_rgb_hsv()
+{
+  if (millis() - update_shadow_tosend_rgb_hsv_last_millis > update_shadow_tosend_rgb_hsv_interval)
+  {
+    update_shadow_tosend_rgb_hsv_flag = false;
+    update_shadow_tosend_rgb_hsv_last_millis = millis();
+    updateDeviceShadow("\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\"");
+  }
+}
+
 void updateDeviceShadow(String shadowMsg)
 {
   //\"deviceId\": \"" + deviceId + "\",\"mac\":\"" + WiFi.macAddress() + "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\",\"groupId\":\"" + groupId + "\",\"localIP\":\"" + WiFi.localIP().toString() + "\",\"x_min_on_value\":\"" + x_min_on_value + "\"
@@ -1257,6 +1278,7 @@ void updateDeviceShadow(String shadowMsg)
   bool ok = clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/update").c_str(), ("{\"state\": {\"reported\": {" + shadowMsg + "}}}").c_str());
 #ifdef DEBUG_AMOR
   printHeap();
+  Serial.println(shadowMsg);
   ok ? Serial.println(F("ok 1 updateDeviceShadow()")) : Serial.println(F("not ok 0 updateDeviceShadow()"));
 #endif
 }
@@ -1897,6 +1919,20 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   else if (type == WStype_CONNECTED)
   {
     webSocket.sendTXT(num, "ok connected", 13);
+    String wsData = "{\"deviceId\":\"" + deviceId +
+                    "\",\"wsData\":\"true\",\"mac\":\"" + WiFi.macAddress() +
+                    "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) +
+                    "\",\"hue\":\"" + tosend_rgb_hsv_values[0] +
+                    "\",\"sat\":\"" + tosend_rgb_hsv_values[1] +
+                    "\",\"groupId\":\"" + groupId +
+                    "\",\"localIP\":\"" + WiFi.localIP().toString() +
+                    "\",\"x_min_on_value\":\"" + x_min_on_value +
+                    "\",\"reconAwsCount\":\"" + recon_aws_count +
+                    "\",\"groupId\":\"" + groupId +
+                    "\",\"FW_ver\":\"" + FirmwareVer +
+                    "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
+    ;
+    webSocket.sendTXT(num, wsData.c_str(), wsData.length());
 #ifdef DEBUG_AMOR
     Serial.println(F("ok connected"));
     Serial.println(num);
@@ -3066,7 +3102,7 @@ String gethotspotname()
 void configModeCallback(WiFiManager *myWiFiManager)
 {
 
-  // Alternate coloring 
+  // Alternate coloring
   // for (size_t i = 0; i < NUM_LEDS; i++)
   // {
   //   if (i%2 == 0)
@@ -3080,11 +3116,10 @@ void configModeCallback(WiFiManager *myWiFiManager)
   //   FastLED.show();
   // }
 
-
-// 1/2 coloring
-    for (size_t i = 0; i < NUM_LEDS; i++)
+  // 1/2 coloring
+  for (size_t i = 0; i < NUM_LEDS; i++)
   {
-    if (i < (NUM_LEDS/2))
+    if (i < (NUM_LEDS / 2))
     {
       leds[i] = CRGB::Red;
     }
@@ -3162,6 +3197,7 @@ void wifiManagerSetup()
 
   wifiManager.setConfigPortalTimeout(40);
   wifiManager.setConnectTimeout(20);
+  wifiManager.setAPNameDeviceId(deviceId.c_str());
 
   // TODO: no need to uncomment , but check what it does?
   //exit after config instead of connecting
@@ -3531,6 +3567,8 @@ void setup()
 #ifdef DEBUG_AMOR
   Serial.begin(115200);
   Serial.println(F("==DEBUGGING ENABLED=="));
+  Serial.println(WiFi.macAddress());
+  Serial.println("amorAAA" + gethotspotname().substring(8, 15));
   printHeap();
   Serial.println(F("fileSystem->begin(); START"));
   Serial.println(F("setup_RGB_leds START"));
@@ -4143,5 +4181,10 @@ void loop()
   if (download_file_to_fs_flag)
   {
     download_file_to_fs();
+  }
+
+  if (update_shadow_tosend_rgb_hsv_flag)
+  {
+    update_shadow_tosend_rgb_hsv();
   }
 }

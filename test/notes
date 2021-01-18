@@ -55,3 +55,36 @@ delete unnecessary data of data/
 update config file json , given file,
 
 // why crashing after wifi setup.
+
+// soft code   this line espClient.setBufferSizes(2048, 1024); // TODO: this increased the avaliavle heap from 4k to 17k, but why and how ?
+
+
+
+
+in wifimanager 
+
+  // server->sendHeader("Content-Length", String(page.length()));
+  // server->send(200, "text/html", page);
+
+  server->sendHeader("Location", String("http://www.amorlamps.com/setup"), true);
+  server->send(302, "text/plain", "");
+
+    wifiManager.setAPNameDeviceId(deviceId.c_str());
+
+
+  server->sendHeader("Location", String("http://www.amorlamps.com/setup/")+_apNameDeviceId, true);
+  server->send(302, "text/plain", "");
+
+  DEBUG_WM(F("Sent wifi save page"));
+   DEBUG_WM(F("redrirected to http://www.amorlamps.com/setup/"));
+
+
+  //to store device id for amor lamps
+    void          setAPNameDeviceId(char const *apNameDeviceId);
+
+    void WiFiManager::setAPNameDeviceId(char const *apNameDeviceId)
+{
+  _apNameDeviceId = apNameDeviceId;
+}
+
+const char*   _apNameDeviceId                 = "no-net-did";

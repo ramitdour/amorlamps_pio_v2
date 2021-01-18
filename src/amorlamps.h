@@ -75,6 +75,7 @@ void publish_boot_data();
 void getDeviceShadow();
 void updateDeviceShadow(String shadowMsg);
 void subscribeDeviceShadow();
+void update_shadow_tosend_rgb_hsv();
 
 void subscribeDeviceTopic_group();
 void subscribeDeviceTopics();
