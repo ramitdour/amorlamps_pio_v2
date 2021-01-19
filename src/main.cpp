@@ -56,9 +56,9 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"1.8"};
+const String FirmwareVer = {"2.0"};
 
-#define DEBUG_AMOR 1 // TODO:comment in productions
+// #define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -209,6 +209,7 @@ WebSocketsServer webSocket = WebSocketsServer(81);
 File uploadFile;
 
 char webpage[] PROGMEM = R"=====(ok amor)=====";
+char webpageOTA[] PROGMEM = R"=====(<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>)=====";
 
 // ESP8266HTTPUpdateServer httpUpdater;
 
@@ -450,7 +451,7 @@ void fade_in_out_RGB_x_times(int x, bool isToSend)
 #endif
 }
 
-Ticker2 ticker_blink_led_x_times(tick_blink_led_x_times, 200, 0, MILLIS);
+Ticker2 ticker_blink_led_x_times(tick_blink_led_x_times, 350, 0, MILLIS);
 
 void tick_blink_led_x_times()
 {
@@ -1227,9 +1228,9 @@ void publish_boot_data()
 
 void getDeviceShadow()
 {
-  #ifdef DEBUG_AMOR
-    Serial.println(F("getDeviceShadow()"));
-    printHeap();
+#ifdef DEBUG_AMOR
+  Serial.println(F("getDeviceShadow()"));
+  printHeap();
 #endif
   // if first boot thenfirst create shadow than update
   if (readFromConfigJSON("firstboot") == "true")
@@ -1243,7 +1244,19 @@ void getDeviceShadow()
 #endif
   }
 
-  clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/get").c_str(), "{}");
+  // TODO: shoud we limit it on the basis of reconAwsCount?  or not
+  if (recon_aws_count < 7)
+  {
+    clientPubSub.publish(("$aws/things/" + deviceId + "/shadow/name/configShadow/get").c_str(), "{}");
+  }
+#ifdef DEBUG_AMOR
+  else
+  {
+    Serial.println(F("not clientPubSub.publish , recon_aws_count = "));
+    Serial.println(recon_aws_count);
+    printHeap();
+  }
+#endif
 }
 
 // void gId_or_ON_time_updateDeviceShadow()
@@ -1277,6 +1290,9 @@ void update_shadow_tosend_rgb_hsv()
 
     update_shadow_tosend_rgb_hsv_flag = false;
     updateDeviceShadow("\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) + "\"");
+    // String et = String(timeClient.getEpochTime());
+    // String msg = "e" + et + "__" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]);
+    // clientPubSub.publish("helloramit", msg.c_str());
     update_shadow_tosend_rgb_hsv_last_millis = millis();
   }
 }
@@ -1852,7 +1868,8 @@ void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length)
   else if (doc["method"] == "ws_update_tosend_color")
   {
     method_handler(MUTOSENDRGB, (uint8_t)doc["h"], true, (uint8_t)doc["s"], 0);
-    method_handler(MBLEDX, 3, true, 1, 0);
+    method_handler(MBLEDX, 3, true, 1, 0); // blinking removed
+    // fading added
     s = "c ok";
     wsReturnStr = s;
   }
@@ -2246,6 +2263,62 @@ void websocket_server_mdns_setup()
     server.serveStatic("/script", LittleFS, readFromConfigJSON("s_script").c_str());
     server.serveStatic("/config", LittleFS, readFromConfigJSON("s_config").c_str());
     server.serveStatic("/dev", LittleFS, readFromConfigJSON("s_dev").c_str());
+
+    //webpageOTA
+    server.on("/update", HTTP_GET, []() {
+      server.sendHeader("Connection", "close");
+      server.send(200, "text/html", webpageOTA);
+    });
+
+    //handles webpage based OTA bin
+    server.on(
+        "/update", HTTP_POST, []() {
+      server.sendHeader("Connection", "close");
+      server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+      ESP.restart(); }, []() {
+      HTTPUpload& upload = server.upload();
+      if (upload.status == UPLOAD_FILE_START) {
+
+#ifdef DEBUG_AMOR
+        Serial.setDebugOutput(true);
+#endif
+
+        WiFiUDP::stopAll();
+
+#ifdef DEBUG_AMOR
+        Serial.printf("Update: %s\n", upload.filename.c_str());
+#endif
+
+        uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+        if (!Update.begin(maxSketchSpace)) { //start with max available size
+#ifdef DEBUG_AMOR
+          Update.printError(Serial);
+#endif
+yield();
+        }
+      } else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+#ifdef DEBUG_AMOR
+          Update.printError(Serial);
+#endif
+          yield();
+        }
+      } else if (upload.status == UPLOAD_FILE_END) {
+        if (Update.end(true)) { //true to set the size to the current progress
+#ifdef DEBUG_AMOR
+          Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+#endif
+        yield();
+        } else {
+#ifdef DEBUG_AMOR
+          Update.printError(Serial);
+#endif
+        }
+#ifdef DEBUG_AMOR
+        Serial.setDebugOutput(false);
+#endif
+      }
+      yield(); });
 
     server.onNotFound(handleNotFound);
     server.begin();
@@ -3206,7 +3279,7 @@ void wifiManagerSetup()
   //Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wifiManager;
 
-  wifiManager.setConfigPortalTimeout(40);
+  wifiManager.setConfigPortalTimeout(70);
   wifiManager.setConnectTimeout(20);
   wifiManager.setAPNameDeviceId(deviceId.c_str());
 
@@ -3371,6 +3444,7 @@ String list_fs_files_sizes()
 }
 
 // TODO:Delte this function in production
+#ifdef DEBUG_AMOR
 void listAndReadFiles()
 {
 
@@ -3431,6 +3505,7 @@ void listAndReadFiles()
   Serial.println(ESP.getFreeSketchSpace());
 #endif
 }
+#endif
 
 String get_ESP_core(String key)
 {
@@ -3617,11 +3692,7 @@ void setup()
   Serial.println(F("setup_config_vars END"));
   printHeap();
   Serial.println(F("listAndReadFiles START"));
-#endif
-
   listAndReadFiles(); // TODO: conmment related code in production.
-
-#ifdef DEBUG_AMOR
   Serial.println(F("listAndReadFiles END"));
   printHeap();
   Serial.println(F("readAwsCerts START"));
@@ -3954,7 +4025,7 @@ void reconnect_aws()
       leds[1] = CRGB::MediumVioletRed;
       FastLED.show();
 
-      if (recon_aws_count > 150)
+      if (recon_aws_count > 60)
       {
         restart_device();
       }

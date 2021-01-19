@@ -15,7 +15,7 @@
     "clientPubSub_buff_size": "2048",
     "failed_aws_trials_counter_base": "5",
 
-    "groupId": "ERR-BOOT",
+    "groupId": "config-boot",
     "localIP": "",
 
     "myrgbHSL": "254255123",

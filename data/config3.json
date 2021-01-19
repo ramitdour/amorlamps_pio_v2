@@ -19,6 +19,6 @@
     "cert_cert": "/cert.der",
     "cert_private": "/private.der",
 
-    "groupId": "ERR_GRP"
+    "groupId": "config-boot"
 
 }

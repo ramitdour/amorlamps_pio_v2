@@ -88,3 +88,20 @@ in wifimanager
 }
 
 const char*   _apNameDeviceId                 = "no-net-did";
+
+
+double hsadow updates on fast color  changing, not retaing last color shadow sometimes.
+
+web ota implemented 2.0
+
+
+
+
+
+
+
+
+
+
+
+
