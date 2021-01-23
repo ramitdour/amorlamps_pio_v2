@@ -145,6 +145,8 @@ String hslN2S(uint8_t h, uint8_t s, uint8_t l);
 
 void ws_rpc_method_handler(uint8_t num, byte *payload, unsigned int length);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
+String lamp_info_string();
+
 void replyOK();
 void replyOKWithMsg(String msg);
 void replyServerError(String msg);

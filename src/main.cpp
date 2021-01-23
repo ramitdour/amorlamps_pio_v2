@@ -56,9 +56,9 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"2.0"};
+const String FirmwareVer = {"2.01"};
 
-// #define DEBUG_AMOR 1 // TODO:comment in productions
+#define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -208,7 +208,7 @@ ESP8266WebServer server;
 WebSocketsServer webSocket = WebSocketsServer(81);
 File uploadFile;
 
-char webpage[] PROGMEM = R"=====(ok amor)=====";
+// char webpage[] PROGMEM = R"=====(ok amor)====="; // diabled after v2.0
 char webpageOTA[] PROGMEM = R"=====(<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>)=====";
 
 // ESP8266HTTPUpdateServer httpUpdater;
@@ -1947,22 +1947,25 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   else if (type == WStype_CONNECTED)
   {
     webSocket.sendTXT(num, "ok connected", 13);
-    String wsData = "{\"deviceId\":\"" + deviceId +
-                    "\",\"wsData\":\"true\",\"mac\":\"" + WiFi.macAddress() +
-                    "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) +
-                    "\",\"hue\":\"" + tosend_rgb_hsv_values[0] +
-                    "\",\"sat\":\"" + tosend_rgb_hsv_values[1] +
-                    "\",\"groupId\":\"" + groupId +
-                    "\",\"localIP\":\"" + WiFi.localIP().toString() +
-                    "\",\"x_min_on_value\":\"" + x_min_on_value +
-                    "\",\"reconAwsCount\":\"" + recon_aws_count +
-                    "\",\"groupId\":\"" + groupId +
-                    "\",\"FW_ver\":\"" + FirmwareVer +
-                    "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
-    ;
+    String wsData = lamp_info_string();
+
+    // String wsData = "{\"deviceId\":\"" + deviceId +
+    //                 "\",\"wsData\":\"true\",\"mac\":\"" + WiFi.macAddress() +
+    //                 "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) +
+    //                 "\",\"hue\":\"" + tosend_rgb_hsv_values[0] +
+    //                 "\",\"sat\":\"" + tosend_rgb_hsv_values[1] +
+    //                 "\",\"groupId\":\"" + groupId +
+    //                 "\",\"localIP\":\"" + WiFi.localIP().toString() +
+    //                 "\",\"x_min_on_value\":\"" + x_min_on_value +
+    //                 "\",\"reconAwsCount\":\"" + recon_aws_count +
+    //                 "\",\"groupId\":\"" + groupId +
+    //                 "\",\"FW_ver\":\"" + FirmwareVer +
+    //                 "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
+    // ;
+
     webSocket.sendTXT(num, wsData.c_str(), wsData.length());
 #ifdef DEBUG_AMOR
-    Serial.println(F("ok connected"));
+    Serial.println(F("ok ws connected num:-"));
     Serial.println(num);
 #endif
   }
@@ -1978,6 +1981,24 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   //   webSocket.sendTXT(num, "ok", 3);
 
   // }
+}
+
+String lamp_info_string()
+{
+  String wsData = "{\"deviceId\":\"" + deviceId +
+                  "\",\"wsData\":\"true\",\"mac\":\"" + WiFi.macAddress() +
+                  "\",\"toSendHSL\":\"" + hslN2S(tosend_rgb_hsv_values[0], tosend_rgb_hsv_values[1], tosend_rgb_hsv_values[2]) +
+                  "\",\"hue\":\"" + tosend_rgb_hsv_values[0] +
+                  "\",\"sat\":\"" + tosend_rgb_hsv_values[1] +
+                  "\",\"groupId\":\"" + groupId +
+                  "\",\"localIP\":\"" + WiFi.localIP().toString() +
+                  "\",\"x_min_on_value\":\"" + x_min_on_value +
+                  "\",\"reconAwsCount\":\"" + recon_aws_count +
+                  "\",\"groupId\":\"" + groupId +
+                  "\",\"FW_ver\":\"" + FirmwareVer +
+                  "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
+  
+  return wsData;
 }
 
 void replyOK()
@@ -2232,7 +2253,9 @@ void websocket_server_mdns_setup()
   {
     // server_setup();
     server.on("/ping", []() {
-      server.send_P(200, "text/html", webpage);
+      // server.send_P(200, "text/html", webpage);
+      server.send_P(200, "text/html", lamp_info_string().c_str());
+      
     });
 
     server.on("/fs", []() {
