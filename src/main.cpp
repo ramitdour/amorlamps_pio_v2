@@ -56,9 +56,9 @@ static bool fsOK;
 bool isToDeleteupdatetoConfigJSONflag = false;
 
 // # define Serial.printf "Serial.println"
-const String FirmwareVer = {"2.01"};
+const String FirmwareVer = {"2.02"};
 
-#define DEBUG_AMOR 1 // TODO:comment in productions
+// #define DEBUG_AMOR 1 // TODO:comment in productions
 
 // <Interrupts>
 //-common-                                            // Volatile because it is changed by ISR ,
@@ -2254,7 +2254,8 @@ void websocket_server_mdns_setup()
     // server_setup();
     server.on("/ping", []() {
       // server.send_P(200, "text/html", webpage);
-      server.send_P(200, "text/html", lamp_info_string().c_str());
+      // server.send_P(200, "text/html", lamp_info_string().c_str());
+      server.send_P(200, "application/json", lamp_info_string().c_str());
       
     });
 
