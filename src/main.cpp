@@ -3229,11 +3229,11 @@ void configModeCallback(WiFiManager *myWiFiManager)
   {
     if (i < (NUM_LEDS / 2))
     {
-      leds[i] = CRGB::Red;
+      leds[i] = CRGB::Green;
     }
     else
     {
-      leds[i] = CRGB::Green;
+      leds[i] = CRGB::Red;
     }
     FastLED.show();
   }
