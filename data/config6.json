@@ -6,13 +6,13 @@
     "ota_host_port": "443",
     "ota_host_ca": "ota.der",
     "URL_fw_Version": "/ramitdour/otaTest/master/version.txt",
-    "URL_fw_Bin": "https://raw.githubusercontent.com/ramitdour/otaTest/master/firmware1_1.bin",
+    "URL_fw_Bin": "https://raw.githubusercontent.com/ramitdour/otaTest/master/firmware2_01.bin",
 
     "d2fs_host_url": "raw.githubusercontent.com",
     "d2fs_host_port": "443",
     "d2fs_host_ca": "ota.der",
-    "d2fs_url_file": "/ramitdour/otaTest/master/dev.html",
-    "d2fs_filename": "dev.html",
+    "d2fs_url_file": "/ramitdour/otaTest/master/index.html",
+    "d2fs_filename": "index.html",
     "d2fs_finished_flag": "0",
 
     "cert_ca_ver": "",

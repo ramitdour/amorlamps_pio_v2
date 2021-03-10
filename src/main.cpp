@@ -1997,7 +1997,7 @@ String lamp_info_string()
                   "\",\"groupId\":\"" + groupId +
                   "\",\"FW_ver\":\"" + FirmwareVer +
                   "\",\"resetInfo\":\"" + ESP.getResetInfo() + "\"}";
-  
+
   return wsData;
 }
 
@@ -2256,7 +2256,6 @@ void websocket_server_mdns_setup()
       // server.send_P(200, "text/html", webpage);
       // server.send_P(200, "text/html", lamp_info_string().c_str());
       server.send_P(200, "application/json", lamp_info_string().c_str());
-      
     });
 
     server.on("/fs", []() {
@@ -4160,6 +4159,7 @@ void reconnect_aws()
         }
 
 #ifdef DEBUG_AMOR
+        Serial.println(timeClient.getFormattedTime());
         printHeap();
         Serial.print(F("failed, rc="));
         Serial.print(clientPubSub.state());
@@ -4236,15 +4236,26 @@ void setupUNIXTimeLoop()
 
   bool okTC = timeClient.update();
 
+//   if (!okTC)
+//   {
+
+//     timeClient.forceUpdate();
+// #ifdef DEBUG_AMOR
+//     Serial.println(F("----  timeClient.forceUpdate();  okTC == false ----"));
+//     Serial.println(timeClient.getEpochTime());
+//     Serial.println(timeClient.getFormattedTime());
+// #endif
+//   }
+
   if ((millis() - timeClient_counter_lastvalid_millis > 6000) && okTC)
   {
     timeClient_counter_lastvalid_millis = millis();
 
-    // #ifdef DEBUG_AMOR
-    //     Serial.println(F("---- 5 sec time update ----"));
-    //     Serial.println(timeClient.getEpochTime());
-    //     Serial.println(timeClient.getFormattedTime());
-    // #endif
+#ifdef DEBUG_AMOR
+    Serial.println(F("---- 5 sec time update ----"));
+    Serial.println(timeClient.getEpochTime());
+    Serial.println(timeClient.getFormattedTime());
+#endif
 
     if (!setX509TimeFlag)
     {

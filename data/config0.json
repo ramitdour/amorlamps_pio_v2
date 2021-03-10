@@ -20,7 +20,7 @@
 
     "myrgbHSL": "254255123",
     "toSendHSL": "123255123",
-    "x_min_on_value": "2",
+    "x_min_on_value": "5",
 
     "cert_ca": "/ca.der",
     "cert_cert": "/cert.der",
